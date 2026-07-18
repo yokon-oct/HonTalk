@@ -1,31 +1,45 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, Switch, ScrollView, ActivityIndicator } from 'react-native';
-import { Stack } from 'expo-router';
+import {
+  StyleSheet, View, Text, Switch,
+  ScrollView, ActivityIndicator,
+} from 'react-native';
 import { colors } from '@/theme/colors';
-import { typography } from '@/theme/typography';
-import { spacing } from '@/theme/spacing';
-
 import { useProfile, useUpdateProfile } from '@/hooks/useProfile';
 
+// DBの notification_settings と同じキー名を使用
 interface NotificationSettings {
-  likes: boolean;
-  comments: boolean;
-  follows: boolean;
+  like: boolean;
+  comment: boolean;
+  follow: boolean;
+  recommend: boolean;
+  dm: boolean;
 }
 
 const DEFAULT_SETTINGS: NotificationSettings = {
-  likes: true,
-  comments: true,
-  follows: true,
+  like: true,
+  comment: true,
+  follow: true,
+  recommend: true,
+  dm: true,
 };
+
+const NOTIFICATION_ITEMS: {
+  key: keyof NotificationSettings;
+  label: string;
+  description: string;
+}[] = [
+  { key: 'like',      label: 'いいね',          description: 'あなたの投稿に「いいね」がついた時' },
+  { key: 'comment',   label: 'コメント',         description: 'あなたの投稿にコメントがついた時' },
+  { key: 'follow',    label: 'フォロー',         description: '新しくフォローされた時' },
+  { key: 'recommend', label: '本のおすすめ',      description: '他のユーザーから本をおすすめされた時' },
+  { key: 'dm',        label: 'ダイレクトメッセージ', description: 'DM を受信した時' },
+];
 
 export default function NotificationsSettingsScreen() {
   const { data: profile, isLoading } = useProfile();
   const { mutate: updateProfile, isPending } = useUpdateProfile();
-
   const [settings, setSettings] = useState<NotificationSettings>(DEFAULT_SETTINGS);
 
-  // 初回ロード時にDBの設定を反映
   useEffect(() => {
     if (profile?.notification_settings) {
       setSettings({
@@ -38,138 +52,95 @@ export default function NotificationsSettingsScreen() {
   const handleToggle = (key: keyof NotificationSettings) => {
     const newSettings = { ...settings, [key]: !settings[key] };
     setSettings(newSettings);
-    
-    // 即座にDBに保存
-    updateProfile({
-      notification_settings: newSettings as any,
-    });
+    updateProfile({ notification_settings: newSettings as any });
   };
 
   if (isLoading) {
     return (
-      <View style={styles.centerContainer}>
+      <View style={styles.center}>
         <ActivityIndicator size="large" color={colors.primary[500]} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <Stack.Screen 
-        options={{ 
-          headerShown: true, 
-          title: '通知設定',
-          headerBackTitle: '戻る' 
-        }} 
-      />
-      
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.description}>
-          アプリ内で受け取るプッシュ通知やバッジの表示設定を変更できます。
-        </Text>
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <Text style={styles.description}>
+        各通知のON / OFFを切り替えられます。変更はすぐに保存されます。
+      </Text>
 
-        <View style={styles.section}>
-          <View style={styles.settingItem}>
-            <View style={styles.settingTextContainer}>
-              <Text style={styles.settingTitle}>いいね</Text>
-              <Text style={styles.settingDescription}>あなたの投稿が「いいね」された時</Text>
+      <View style={styles.card}>
+        {NOTIFICATION_ITEMS.map((item, idx) => (
+          <View key={item.key}>
+            <View style={styles.row}>
+              <View style={styles.textWrap}>
+                <Text style={styles.rowTitle}>{item.label}</Text>
+                <Text style={styles.rowDesc}>{item.description}</Text>
+              </View>
+              <Switch
+                value={settings[item.key]}
+                onValueChange={() => handleToggle(item.key)}
+                trackColor={{ false: colors.neutral[300], true: colors.primary[500] }}
+                thumbColor="#ffffff"
+                disabled={isPending}
+              />
             </View>
-            <Switch
-              value={settings.likes}
-              onValueChange={() => handleToggle('likes')}
-              trackColor={{ false: colors.neutral[300], true: colors.primary[500] }}
-              disabled={isPending}
-            />
+            {idx < NOTIFICATION_ITEMS.length - 1 && <View style={styles.divider} />}
           </View>
-          
-          <View style={styles.divider} />
+        ))}
+      </View>
 
-          <View style={styles.settingItem}>
-            <View style={styles.settingTextContainer}>
-              <Text style={styles.settingTitle}>コメント</Text>
-              <Text style={styles.settingDescription}>あなたの投稿にコメントがついた時</Text>
-            </View>
-            <Switch
-              value={settings.comments}
-              onValueChange={() => handleToggle('comments')}
-              trackColor={{ false: colors.neutral[300], true: colors.primary[500] }}
-              disabled={isPending}
-            />
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.settingItem}>
-            <View style={styles.settingTextContainer}>
-              <Text style={styles.settingTitle}>フォロー</Text>
-              <Text style={styles.settingDescription}>あなたを新しくフォローした人がいる時</Text>
-            </View>
-            <Switch
-              value={settings.follows}
-              onValueChange={() => handleToggle('follows')}
-              trackColor={{ false: colors.neutral[300], true: colors.primary[500] }}
-              disabled={isPending}
-            />
-          </View>
+      {isPending && (
+        <View style={styles.savingRow}>
+          <ActivityIndicator size="small" color={colors.primary[500]} />
+          <Text style={styles.savingText}>保存中...</Text>
         </View>
-      </ScrollView>
-    </View>
+      )}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.neutral[50],
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.neutral[50],
-  },
-  scrollContent: {
-    padding: spacing.lg,
-  },
+  container: { flex: 1, backgroundColor: colors.neutral[100] },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  content: { padding: 16 },
   description: {
-    ...typography.preset.bodySmall,
-    color: colors.neutral[600],
-    marginBottom: spacing.lg,
-    paddingHorizontal: spacing.xs,
+    fontSize: 13,
+    color: colors.neutral[500],
+    marginBottom: 16,
+    lineHeight: 20,
+    paddingHorizontal: 4,
   },
-  section: {
+  card: {
     backgroundColor: colors.neutral[0],
-    borderRadius: 12,
+    borderRadius: 14,
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 4,
-    elevation: 2,
-    overflow: 'hidden',
+    elevation: 1,
   },
-  settingItem: {
+  row: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: spacing.lg,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
   },
-  settingTextContainer: {
-    flex: 1,
-    paddingRight: spacing.md,
-  },
-  settingTitle: {
-    ...typography.preset.body,
-    fontWeight: 'bold',
-    color: colors.neutral[900],
-    marginBottom: 4,
-  },
-  settingDescription: {
-    ...typography.preset.bodySmall,
-    color: colors.neutral[500],
-  },
+  textWrap: { flex: 1, paddingRight: 12 },
+  rowTitle: { fontSize: 15, fontWeight: '600', color: colors.neutral[900], marginBottom: 3 },
+  rowDesc: { fontSize: 12, color: colors.neutral[500], lineHeight: 17 },
   divider: {
     height: 1,
     backgroundColor: colors.neutral[100],
-    marginLeft: spacing.lg,
+    marginHorizontal: 16,
   },
+  savingRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 16,
+    gap: 8,
+  },
+  savingText: { fontSize: 13, color: colors.primary[500] },
 });

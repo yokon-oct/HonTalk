@@ -163,6 +163,39 @@ export function useAuth() {
   }, [setLoading, showToast]);
 
   /**
+   * アカウント削除
+   * profiles テーブルから削除 → CASCADE で関連データも全削除 → サインアウト
+   */
+  const deleteAccount = useCallback(async () => {
+    try {
+      setLoading(true);
+      const currentUser = useAuthStore.getState().user;
+      if (!currentUser) throw new Error('ユーザーが認証されていません');
+
+      // profiles を削除（ON DELETE CASCADE で reading_records, reviews 等も連鎖削除）
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', currentUser.id);
+
+      if (error) throw error;
+
+      // 認証セッションも削除
+      await supabase.auth.signOut();
+      reset();
+
+      showToast({ message: 'アカウントを削除しました', type: 'info' });
+      return { success: true };
+    } catch (error) {
+      const appError = handleError(error);
+      showToast({ message: appError.message, type: 'error' });
+      return { success: false, error: appError };
+    } finally {
+      setLoading(false);
+    }
+  }, [reset, setLoading, showToast]);
+
+  /**
    * セッションの初期チェック
    * アプリ起動時に一度だけ呼び出す
    */
@@ -198,6 +231,7 @@ export function useAuth() {
     signUpWithEmail,
     signOut,
     updateEmail,
+    deleteAccount,
     initializeAuth,
     fetchProfile,
   };
