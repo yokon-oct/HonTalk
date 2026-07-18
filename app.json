@@ -1,18 +1,21 @@
 {
   "expo": {
-    "name": "_tmp_init",
-    "slug": "_tmp_init",
+    "name": "HonTalk",
+    "slug": "hontalk",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "tmpinit",
-    "userInterfaceStyle": "automatic",
+    "scheme": "hontalk",
+    "userInterfaceStyle": "light",
     "ios": {
+      "bundleIdentifier": "com.hontalk.app",
+      "supportsTablet": true,
       "icon": "./assets/expo.icon"
     },
     "android": {
+      "package": "com.hontalk.app",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#F5E6D3",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -25,10 +28,23 @@
     },
     "plugins": [
       "expo-router",
+      "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "本のバーコードをスキャンするためにカメラを使用します。"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "プロフィール画像を選択するために写真ライブラリにアクセスします。"
+        }
+      ],
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#F5E6D3",
           "android": {
             "image": "./assets/images/splash-icon.png",
             "imageWidth": 76
