@@ -127,6 +127,14 @@ export default function RootLayout() {
                 headerBackTitle: '戻る',
               }}
             />
+            <Stack.Screen
+              name="stats"
+              options={{
+                headerShown: true,
+                headerTitle: '読書統計',
+                headerBackTitle: '戻る',
+              }}
+            />
           </Stack>
         </AuthGuard>
       </GestureHandlerRootView>

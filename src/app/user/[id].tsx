@@ -1,5 +1,5 @@
-import React from 'react';
-import { StyleSheet, View, Text, Image, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, View, Text, Image, ScrollView, TouchableOpacity, ActivityIndicator, Alert, ActionSheetIOS, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { colors } from '@/theme/colors';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,19 +10,24 @@ import { useProfileWithStats } from '@/hooks/useProfile';
 import { useReadingRecords } from '@/hooks/useBooks';
 import { useReviewsByUser } from '@/hooks/useReviews';
 import { useIsFollowing, useToggleFollow } from '@/hooks/useFollow';
+import { useIsBlocking, useToggleBlock } from '@/hooks/useBlock';
 import { ReviewCard } from '@/components/review/ReviewCard';
+import { ReportModal } from '@/components/social/ReportModal';
 import { useAuthStore } from '@/stores/authStore';
 
 export default function UserProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const currentUserId = useAuthStore((state) => state.user?.id);
+  const [reportModalVisible, setReportModalVisible] = useState(false);
   
   const isOwnProfile = currentUserId === id;
 
   const { data: profileData, isLoading: profileLoading } = useProfileWithStats(id);
   const { data: isFollowing, isLoading: followCheckLoading } = useIsFollowing(id || '');
   const { mutate: toggleFollow, isPending: followPending } = useToggleFollow();
+  const { data: isBlocking } = useIsBlocking(id || '');
+  const { mutate: toggleBlock, isPending: blockPending } = useToggleBlock();
 
   const handleToggleFollow = () => {
     if (!id || followPending) return;
@@ -31,6 +36,54 @@ export default function UserProfileScreen() {
 
   const { data: readingRecords, isLoading: recordsLoading } = useReadingRecords(id);
   const { data: reviews, isLoading: reviewsLoading } = useReviewsByUser(id || '');
+
+  const handleBlockToggle = () => {
+    if (!id || blockPending) return;
+    const actionLabel = isBlocking ? 'ブロックを解除' : 'ブロック';
+    Alert.alert(
+      isBlocking ? 'ブロックを解除しますか？' : `${profileData?.nickname ?? 'このユーザー'}をブロックしますか？`,
+      isBlocking
+        ? 'ブロックを解除すると、このユーザーの投稿がタイムラインに表示されるようになります。'
+        : 'ブロックすると、このユーザーの投稿がタイムラインに表示されなくなります。',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: actionLabel,
+          style: isBlocking ? 'default' : 'destructive',
+          onPress: () => toggleBlock({ targetId: id, isBlocking: !!isBlocking }),
+        },
+      ]
+    );
+  };
+
+  const handleMoreOptions = () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: isBlocking
+            ? ['キャンセル', 'ブロックを解除', 'このユーザーを通報']
+            : ['キャンセル', `${profileData?.nickname ?? 'ユーザー'}をブロック`, 'このユーザーを通報'],
+          cancelButtonIndex: 0,
+          destructiveButtonIndex: isBlocking ? undefined : 1,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) handleBlockToggle();
+          if (buttonIndex === 2) setReportModalVisible(true);
+        }
+      );
+    } else {
+      // Android: Alert でメニュー代替
+      Alert.alert(
+        'メニュー',
+        undefined,
+        [
+          { text: 'キャンセル', style: 'cancel' },
+          { text: isBlocking ? 'ブロックを解除' : 'ブロックする', onPress: handleBlockToggle },
+          { text: 'このユーザーを通報', onPress: () => setReportModalVisible(true) },
+        ]
+      );
+    }
+  };
 
   if (profileLoading) {
     return (
@@ -69,7 +122,16 @@ export default function UserProfileScreen() {
         options={{ 
           headerShown: true, 
           title: profile.nickname,
-          headerBackTitle: '戻る' 
+          headerBackTitle: '戻る',
+          headerRight: !isOwnProfile ? () => (
+            <TouchableOpacity
+              onPress={handleMoreOptions}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={{ marginRight: 4 }}
+            >
+              <Ionicons name="ellipsis-vertical" size={22} color={colors.neutral[700]} />
+            </TouchableOpacity>
+          ) : undefined,
         }} 
       />
 
@@ -85,8 +147,15 @@ export default function UserProfileScreen() {
         
         <View style={styles.headerRight}>
           <Text style={styles.name}>{profile.nickname}</Text>
-          {/* フォローボタン (自分のプロフィールでない場合のみ表示) */}
-          {!isOwnProfile && (
+          {/* ブロック中バナー */}
+          {isBlocking && (
+            <View style={styles.blockBanner}>
+              <Ionicons name="ban" size={14} color={colors.neutral[0]} />
+              <Text style={styles.blockBannerText}>ブロック中</Text>
+            </View>
+          )}
+          {/* フォローボタン (自分のプロフィールでない場合、かつブロックしていない場合のみ) */}
+          {!isOwnProfile && !isBlocking && (
             <TouchableOpacity 
               style={[styles.followButton, isFollowing && styles.followingActiveButton]}
               onPress={handleToggleFollow}
@@ -111,7 +180,16 @@ export default function UserProfileScreen() {
         </View>
       </View>
 
-      {canViewContent ? (
+      {isBlocking ? (
+        /* ブロック中表示 */
+        <View style={styles.blockedContainer}>
+          <Ionicons name="ban" size={48} color={colors.neutral[300]} />
+          <Text style={styles.blockedTitle}>ブロックしているユーザーです</Text>
+          <Text style={styles.blockedText}>
+            {'このユーザーのコンテンツは表示されません。\nブロックを解除するには右上のメニューを使用してください。'}
+          </Text>
+        </View>
+      ) : canViewContent ? (
         <>
           {/* 自己紹介 */}
           <Text style={styles.bio}>{profile.bio || '自己紹介はまだありません。'}</Text>
@@ -207,6 +285,17 @@ export default function UserProfileScreen() {
               : 'このユーザーはプロフィールを非公開に設定しています。'}
           </Text>
         </View>
+      )}
+
+      {/* 通報モーダル */}
+      {id && (
+        <ReportModal
+          visible={reportModalVisible}
+          onClose={() => setReportModalVisible(false)}
+          targetType="user"
+          targetId={id}
+          targetLabel="このユーザー"
+        />
       )}
     </ScrollView>
   );
@@ -399,6 +488,49 @@ const styles = StyleSheet.create({
     marginTop: 16,
     backgroundColor: colors.neutral[0],
     borderRadius: 12,
+  },
+  blockedContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 64,
+    paddingHorizontal: 24,
+    backgroundColor: colors.neutral[0],
+    borderRadius: 12,
+    marginTop: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  blockedTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.neutral[700],
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  blockedText: {
+    fontSize: 14,
+    color: colors.neutral[500],
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  blockBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.neutral[500],
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    alignSelf: 'flex-start',
+    gap: 4,
+    marginBottom: 8,
+  },
+  blockBannerText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.neutral[0],
   },
   privateContainer: {
     alignItems: 'center',

@@ -9,8 +9,7 @@
     "userInterfaceStyle": "light",
     "ios": {
       "bundleIdentifier": "com.hontalk.app",
-      "supportsTablet": true,
-      "icon": "./assets/expo.icon"
+      "supportsTablet": true
     },
     "android": {
       "package": "com.hontalk.app",

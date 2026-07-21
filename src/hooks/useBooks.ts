@@ -11,6 +11,7 @@ export const bookKeys = {
   detail: (id: string) => [...bookKeys.all, 'detail', id] as const,
   readingRecords: (userId: string) => [...bookKeys.all, 'readingRecords', userId] as const,
   readingRecordDetail: (userId: string, bookId: string) => [...bookKeys.all, 'readingRecords', userId, bookId] as const,
+  stats: (userId: string) => [...bookKeys.all, 'stats', userId] as const,
 };
 
 /**
@@ -220,5 +221,19 @@ export function useDeleteReadingRecord() {
         queryClient.invalidateQueries({ queryKey: bookKeys.all });
       }
     },
+  });
+}
+/**
+ * 読書統計を取得する
+ */
+export function useReadingStats(userId?: string) {
+  const currentUserId = useAuthStore((state) => state.user?.id);
+  const targetUserId = userId ?? currentUserId;
+
+  return useQuery({
+    queryKey: bookKeys.stats(targetUserId ?? ''),
+    queryFn: () => bookService.getReadingStats(targetUserId!),
+    enabled: !!targetUserId,
+    staleTime: 60_000, // 1分間キャッシュ
   });
 }

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, Alert, ActionSheetIOS } from 'react-native';
 import { Image } from 'expo-image';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { colors } from '@/theme/colors';
 import { Ionicons } from '@expo/vector-icons';
 import { useReviewDetail, useReviewComments, useCreateComment, useDeleteComment } from '@/hooks/useReviews';
@@ -9,12 +9,14 @@ import { formatDistanceToNow } from 'date-fns';
 import { ja } from 'date-fns/locale';
 import { LikeButton } from '@/components/social/LikeButton';
 import { SpoilerGuard } from '@/components/review/SpoilerGuard';
+import { ReportModal } from '@/components/social/ReportModal';
 import { useAuthStore } from '@/stores/authStore';
 
 export default function ReviewDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const [commentText, setCommentText] = useState('');
+  const [reportModalVisible, setReportModalVisible] = useState(false);
 
   const { data: review, isLoading: isReviewLoading, isError: isReviewError } = useReviewDetail(id as string);
   const { data: comments, isLoading: isCommentsLoading } = useReviewComments(id as string);
@@ -32,6 +34,31 @@ export default function ReviewDetailsScreen() {
         }
       }
     );
+  };
+
+  const isOwnReview = currentUserId === review?.user?.id;
+
+  const handleMoreOptions = () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['キャンセル', 'このレビューを通報'],
+          cancelButtonIndex: 0,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) setReportModalVisible(true);
+        }
+      );
+    } else {
+      Alert.alert(
+        'メニュー',
+        undefined,
+        [
+          { text: 'キャンセル', style: 'cancel' },
+          { text: 'このレビューを通報', onPress: () => setReportModalVisible(true) },
+        ]
+      );
+    }
   };
 
   if (isReviewLoading) {
@@ -58,6 +85,19 @@ export default function ReviewDetailsScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
+      <Stack.Screen
+        options={{
+          headerRight: !isOwnReview ? () => (
+            <TouchableOpacity
+              onPress={handleMoreOptions}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={{ marginRight: 4 }}
+            >
+              <Ionicons name="ellipsis-vertical" size={22} color={colors.neutral[700]} />
+            </TouchableOpacity>
+          ) : undefined,
+        }}
+      />
       <ScrollView contentContainerStyle={styles.content}>
         {/* ユーザー情報 */}
         <View style={styles.userInfo}>
@@ -187,6 +227,15 @@ export default function ReviewDetailsScreen() {
           )}
         </TouchableOpacity>
       </View>
+
+      {/* 通報モーダル */}
+      <ReportModal
+        visible={reportModalVisible}
+        onClose={() => setReportModalVisible(false)}
+        targetType="review"
+        targetId={id as string}
+        targetLabel="このレビュー"
+      />
     </KeyboardAvoidingView>
   );
 }

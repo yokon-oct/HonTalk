@@ -461,6 +461,42 @@ export interface Database {
         };
         Returns: boolean;
       };
+      is_blocking: {
+        Args: {
+          p_blocker_id: string;
+          p_blocked_id: string;
+        };
+        Returns: boolean;
+      };
+      get_blocked_users: {
+        Args: {
+          p_user_id: string;
+        };
+        Returns: {
+          block_id: string;
+          blocked_at: string;
+          user_id: string;
+          nickname: string;
+          avatar_url: string | null;
+          bio: string;
+        }[];
+      };
+      submit_report: {
+        Args: {
+          p_reporter_id: string;
+          p_target_type: string;
+          p_target_id: string;
+          p_category: string;
+          p_description?: string | null;
+        };
+        Returns: Json;
+      };
+      get_reading_stats: {
+        Args: {
+          p_user_id: string;
+        };
+        Returns: Json;
+      };
     };
     Views: {};
     CompositeTypes: {};

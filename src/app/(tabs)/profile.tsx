@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { StyleSheet, View, Text, Image, TouchableOpacity, ActivityIndicator, FlatList, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { colors } from '@/theme/colors';
@@ -24,6 +24,7 @@ const DUMMY_PROFILE = {
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const [refreshing, setRefreshing] = useState(false);
   const { 
     data: profileData, 
     isLoading: profileLoading, 
@@ -47,12 +48,14 @@ export default function ProfileScreen() {
     isFetching: reviewsFetching
   } = useReviewsByUser(profileData?.id);
 
-  const isRefreshing = profileFetching || recordsFetching || reviewsFetching;
-
-  const handleRefresh = useCallback(() => {
-    refetchProfile();
-    refetchRecords();
-    refetchReviews();
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([
+      refetchProfile(),
+      refetchRecords(),
+      refetchReviews(),
+    ]);
+    setRefreshing(false);
   }, [refetchProfile, refetchRecords, refetchReviews]);
 
   const handlePressReview = useCallback((review: ReviewWithDetails) => {
@@ -123,6 +126,21 @@ export default function ProfileScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* 読書統計ボタン */}
+      <TouchableOpacity
+        style={styles.statsButton}
+        onPress={() => router.push('/stats')}
+        activeOpacity={0.8}
+      >
+        <View style={styles.statsButtonLeft}>
+          <View style={styles.statsButtonIcon}>
+            <Ionicons name="bar-chart-outline" size={18} color={colors.primary[500]} />
+          </View>
+          <Text style={styles.statsButtonText}>読書統計を見る</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={16} color={colors.neutral[400]} />
+      </TouchableOpacity>
+
       {/* 本棚セクション */}
       <View style={styles.shelfSection}>
         <View style={styles.sectionHeaderRow}>
@@ -186,7 +204,7 @@ export default function ProfileScreen() {
       keyExtractor={(item) => item.id}
       refreshControl={
         <RefreshControl
-          refreshing={isRefreshing}
+          refreshing={refreshing}
           onRefresh={handleRefresh}
           tintColor={colors.primary[500]}
           colors={[colors.primary[500]]}
@@ -296,6 +314,40 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.neutral[500],
     marginTop: 4,
+  },
+  statsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.neutral[0],
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: colors.primary[100],
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  statsButtonLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  statsButtonIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: colors.primary[50],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  statsButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.primary[600],
   },
   shelfSection: {
     marginBottom: 24,

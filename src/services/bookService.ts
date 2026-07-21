@@ -380,3 +380,55 @@ export async function deleteReadingRecord(
 
   if (error) throw error;
 }
+
+// ==========================================
+// 読書統計
+// ==========================================
+
+export interface ReadingStats {
+  summary: {
+    total_finished: number;
+    total_reading: number;
+    total_want: number;
+    year_finished: number;
+    year_reading: number;
+  };
+  monthly: Array<{
+    year: number;
+    month: number;
+    count: number;
+  }>;
+  by_genre: Array<{
+    genre: string;
+    count: number;
+  }>;
+  ratings: Array<{
+    rating: number;
+    count: number;
+  }>;
+}
+
+/**
+ * 読書統計を取得する（RPCで一括集計）
+ */
+export async function getReadingStats(userId: string): Promise<ReadingStats> {
+  const { data, error } = await supabase.rpc('get_reading_stats', {
+    p_user_id: userId,
+  });
+
+  if (error) throw error;
+
+  const stats = data as unknown as ReadingStats;
+  return {
+    summary: stats.summary ?? {
+      total_finished: 0,
+      total_reading: 0,
+      total_want: 0,
+      year_finished: 0,
+      year_reading: 0,
+    },
+    monthly: stats.monthly ?? [],
+    by_genre: stats.by_genre ?? [],
+    ratings: stats.ratings ?? [],
+  };
+}
