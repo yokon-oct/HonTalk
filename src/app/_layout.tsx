@@ -18,6 +18,7 @@ import { queryClient } from '@/config/queryClient';
 import { supabase } from '@/services/supabase';
 import { useAuthStore } from '@/stores/authStore';
 import { useAuth } from '@/hooks/useAuth';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { colors } from '@/theme/colors';
 
 import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
@@ -27,6 +28,9 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { session, isInitialized } = useAuthStore();
   const { initializeAuth } = useAuth();
+
+  // プッシュ通知の登録・受信・タップ時遷移
+  usePushNotifications();
 
   // 認証状態の初期化
   useEffect(() => {

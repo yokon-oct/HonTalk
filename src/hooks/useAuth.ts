@@ -10,6 +10,7 @@ import { supabase } from '@/services/supabase';
 import { useAuthStore } from '@/stores/authStore';
 import { useUIStore } from '@/stores/uiStore';
 import { handleError } from '@/utils/errorHandler';
+import { unregisterCurrentPushToken, setCurrentPushToken } from '@/services/pushTokenService';
 import type { Profile } from '@/stores/authStore';
 
 export function useAuth() {
@@ -129,6 +130,9 @@ export function useAuth() {
    */
   const signOut = useCallback(async () => {
     try {
+      // この端末のプッシュ通知トークンをサーバーから解除する
+      // （signOut後はRLSにより削除できなくなるため、signOut前に実行する）
+      await unregisterCurrentPushToken();
       await supabase.auth.signOut();
       reset();
       showToast({ message: 'ログアウトしました', type: 'info' });
@@ -179,6 +183,9 @@ export function useAuth() {
         .eq('id', currentUser.id);
 
       if (error) throw error;
+
+      // profiles のCASCADE削除でpush_tokensも削除されるため、ローカルの参照のみクリアする
+      setCurrentPushToken(null);
 
       // 認証セッションも削除
       await supabase.auth.signOut();

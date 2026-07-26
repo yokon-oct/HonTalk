@@ -19,7 +19,11 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "output": "static",
@@ -49,11 +53,30 @@
             "imageWidth": 76
           }
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#F5E6D3",
+          "defaultChannel": "default"
+        }
       ]
     ],
+    "notification": {
+      "icon": "./assets/images/icon.png",
+      "color": "#F5E6D3"
+    },
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "599dc4c1-ec0b-4918-8c9c-e5a17330abf7"
+      },
+      "router": {}
+    },
+    "owner": "yokon"
   }
 }

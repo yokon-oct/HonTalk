@@ -1,10 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   StyleSheet, View, Text, Switch,
-  ScrollView, ActivityIndicator,
+  ScrollView, ActivityIndicator, TouchableOpacity, Platform, Linking,
 } from 'react-native';
+import * as Device from 'expo-device';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/theme/colors';
 import { useProfile, useUpdateProfile } from '@/hooks/useProfile';
+import { useAuthStore } from '@/stores/authStore';
+import {
+  getPushPermissionStatusAsync,
+  registerForPushNotificationsAsync,
+} from '@/services/pushNotificationService';
+import { registerPushToken, setCurrentPushToken } from '@/services/pushTokenService';
+
+type PushStatus = 'checking' | 'granted' | 'denied' | 'undetermined' | 'unsupported';
 
 // DBの notification_settings と同じキー名を使用
 interface NotificationSettings {
@@ -39,6 +49,9 @@ export default function NotificationsSettingsScreen() {
   const { data: profile, isLoading } = useProfile();
   const { mutate: updateProfile, isPending } = useUpdateProfile();
   const [settings, setSettings] = useState<NotificationSettings>(DEFAULT_SETTINGS);
+  const [pushStatus, setPushStatus] = useState<PushStatus>('checking');
+  const [isRequestingPush, setIsRequestingPush] = useState(false);
+  const userId = useAuthStore((state) => state.user?.id);
 
   useEffect(() => {
     if (profile?.notification_settings) {
@@ -49,10 +62,51 @@ export default function NotificationsSettingsScreen() {
     }
   }, [profile]);
 
+  const checkPushStatus = useCallback(async () => {
+    if (Platform.OS === 'web' || !Device.isDevice) {
+      setPushStatus('unsupported');
+      return;
+    }
+    const status = await getPushPermissionStatusAsync();
+    setPushStatus(status as PushStatus);
+  }, []);
+
+  // 画面表示時に現在のプッシュ通知権限状態を取得する
+  useEffect(() => {
+    (async () => {
+      if (Platform.OS === 'web' || !Device.isDevice) {
+        setPushStatus('unsupported');
+        return;
+      }
+      const status = await getPushPermissionStatusAsync();
+      setPushStatus(status as PushStatus);
+    })();
+  }, []);
+
   const handleToggle = (key: keyof NotificationSettings) => {
     const newSettings = { ...settings, [key]: !settings[key] };
     setSettings(newSettings);
     updateProfile({ notification_settings: newSettings as any });
+  };
+
+  const handleEnablePush = async () => {
+    if (pushStatus === 'denied') {
+      // 一度拒否された場合はアプリからの再リクエストができないため、OS設定を開く
+      Linking.openSettings();
+      return;
+    }
+
+    setIsRequestingPush(true);
+    try {
+      const result = await registerForPushNotificationsAsync();
+      if (result.status === 'success' && userId) {
+        setCurrentPushToken(result.token);
+        await registerPushToken(userId, result.token, Platform.OS === 'ios' ? 'ios' : 'android', Device.deviceName);
+      }
+    } finally {
+      setIsRequestingPush(false);
+      checkPushStatus();
+    }
   };
 
   if (isLoading) {
@@ -65,6 +119,43 @@ export default function NotificationsSettingsScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      {pushStatus !== 'unsupported' && (
+        <View style={styles.pushCard}>
+          <View style={styles.pushIconWrap}>
+            <Ionicons
+              name={pushStatus === 'granted' ? 'notifications' : 'notifications-off-outline'}
+              size={22}
+              color={pushStatus === 'granted' ? colors.primary[500] : colors.neutral[400]}
+            />
+          </View>
+          <View style={styles.pushTextWrap}>
+            <Text style={styles.pushTitle}>プッシュ通知</Text>
+            <Text style={styles.pushDesc}>
+              {pushStatus === 'granted'
+                ? 'この端末でプッシュ通知が有効になっています'
+                : pushStatus === 'denied'
+                ? '端末の設定でプッシュ通知が無効になっています'
+                : 'いいねやフォローなどをプッシュ通知でお知らせします'}
+            </Text>
+          </View>
+          {pushStatus !== 'granted' && (
+            <TouchableOpacity
+              style={styles.pushButton}
+              onPress={handleEnablePush}
+              disabled={isRequestingPush}
+            >
+              {isRequestingPush ? (
+                <ActivityIndicator size="small" color={colors.neutral[0]} />
+              ) : (
+                <Text style={styles.pushButtonText}>
+                  {pushStatus === 'denied' ? '設定を開く' : '有効にする'}
+                </Text>
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
       <Text style={styles.description}>
         各通知のON / OFFを切り替えられます。変更はすぐに保存されます。
       </Text>
@@ -104,6 +195,40 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.neutral[100] },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   content: { padding: 16 },
+  pushCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.neutral[0],
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  pushIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.neutral[100],
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  pushTextWrap: { flex: 1, paddingRight: 8 },
+  pushTitle: { fontSize: 15, fontWeight: '600', color: colors.neutral[900], marginBottom: 3 },
+  pushDesc: { fontSize: 12, color: colors.neutral[500], lineHeight: 17 },
+  pushButton: {
+    backgroundColor: colors.primary[500],
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    minWidth: 84,
+    alignItems: 'center',
+  },
+  pushButtonText: { color: colors.neutral[0], fontSize: 13, fontWeight: '600' },
   description: {
     fontSize: 13,
     color: colors.neutral[500],

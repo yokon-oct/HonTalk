@@ -15,6 +15,10 @@ export type NotificationWithActor = NotificationRow & {
  * - 自分自身への通知スキップ
  * - ユーザーの通知設定の尊重
  * をDB側で一元管理する
+ *
+ * 続けて send-push-notification Edge Function を呼び出し、
+ * 対象ユーザーの登録済み端末にプッシュ通知を送信する。
+ * （送信可否・通知設定の再チェックは Edge Function 側で行う）
  */
 export async function createNotification(
   notification: Pick<NotificationInsert, 'user_id' | 'actor_id' | 'type' | 'reference_type' | 'reference_id' | 'message'>
@@ -31,7 +35,24 @@ export async function createNotification(
   if (error) {
     console.error('Failed to create notification:', error);
     // 通知作成の失敗で親の処理（いいね等）を失敗させないよう、throwせずログのみ残す
+    return;
   }
+
+  // プッシュ送信は失敗してもアプリ内通知の作成自体には影響させない（fire-and-forget）
+  supabase.functions
+    .invoke('send-push-notification', {
+      body: {
+        user_id: notification.user_id,
+        actor_id: notification.actor_id ?? notification.user_id,
+        type: notification.type,
+        reference_type: notification.reference_type ?? null,
+        reference_id: notification.reference_id ?? null,
+        message: notification.message ?? null,
+      },
+    })
+    .catch((pushError) => {
+      console.error('Failed to invoke send-push-notification:', pushError);
+    });
 }
 
 /**
