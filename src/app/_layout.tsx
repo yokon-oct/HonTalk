@@ -139,6 +139,14 @@ export default function RootLayout() {
                 headerBackTitle: '戻る',
               }}
             />
+            <Stack.Screen
+              name="ranking"
+              options={{
+                headerShown: true,
+                headerTitle: 'ランキング',
+                headerBackTitle: '戻る',
+              }}
+            />
           </Stack>
         </AuthGuard>
       </GestureHandlerRootView>

@@ -61,9 +61,19 @@ function HamburgerMenu({ topOffset }: { topOffset: number }) {
     if (user?.id) router.push(`/shelf/${user.id}`);
   };
 
+  const handleMyShelves = () => {
+    closeMenu();
+    router.push('/shelf/my-shelves');
+  };
+
   const handleScanner = () => {
     closeMenu();
     router.push('/scanner');
+  };
+
+  const handleRanking = () => {
+    closeMenu();
+    router.push('/ranking');
   };
 
   const handleLogout = () => {
@@ -99,12 +109,34 @@ function HamburgerMenu({ topOffset }: { topOffset: number }) {
 
             <View style={styles.menuDivider} />
 
+            {/* マイ本棚（カスタム本棚） */}
+            <TouchableOpacity style={styles.menuItem} onPress={handleMyShelves} activeOpacity={0.7}>
+              <View style={styles.menuIconWrapper}>
+                <Ionicons name="albums-outline" size={20} color={colors.primary[500]} />
+              </View>
+              <Text style={styles.menuItemText}>マイ本棚</Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.neutral[300]} />
+            </TouchableOpacity>
+
+            <View style={styles.menuDivider} />
+
             {/* バーコードスキャン */}
             <TouchableOpacity style={styles.menuItem} onPress={handleScanner} activeOpacity={0.7}>
               <View style={styles.menuIconWrapper}>
                 <Ionicons name="barcode-outline" size={20} color={colors.primary[500]} />
               </View>
               <Text style={styles.menuItemText}>バーコードスキャン</Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.neutral[300]} />
+            </TouchableOpacity>
+
+            <View style={styles.menuDivider} />
+
+            {/* ランキング */}
+            <TouchableOpacity style={styles.menuItem} onPress={handleRanking} activeOpacity={0.7}>
+              <View style={styles.menuIconWrapper}>
+                <Ionicons name="trophy-outline" size={20} color={colors.primary[500]} />
+              </View>
+              <Text style={styles.menuItemText}>ランキング</Text>
               <Ionicons name="chevron-forward" size={16} color={colors.neutral[300]} />
             </TouchableOpacity>
 

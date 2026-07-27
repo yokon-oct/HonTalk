@@ -1,12 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { colors } from '@/theme/colors';
 import { Ionicons } from '@expo/vector-icons';
 import { useBookPageData, useUpsertReadingRecord } from '@/hooks/useBooks';
+import { useShelvesForBook, useShelves } from '@/hooks/useShelves';
 import { BookCover } from '@/components/book/BookCover';
 import { useReviewsByBook } from '@/hooks/useReviews';
 import { ReviewCard } from '@/components/review/ReviewCard';
+import { AddToShelfModal } from '@/components/shelf/AddToShelfModal';
 
 export default function BookDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -15,12 +17,22 @@ export default function BookDetailsScreen() {
   const { data: pageData, isLoading, isError } = useBookPageData(id || '');
   const book = pageData?.book;
   const readingRecord = pageData?.readingRecord;
-  
+  const dbBookId = pageData?.dbBookId;
+
   // 読書ステータスを取得・更新するためのフック
   const { mutateAsync: upsertRecord, isPending: isUpdatingStatus } = useUpsertReadingRecord();
 
   // レビュー一覧を取得するためのフック
   const { data: reviews, isLoading: reviewsLoading } = useReviewsByBook(id || '');
+
+  // カスタム本棚の所属状況
+  const { data: allShelves } = useShelves();
+  const { data: memberShelfIds } = useShelvesForBook(dbBookId);
+  const [shelfModalVisible, setShelfModalVisible] = useState(false);
+
+  const memberShelfNames = (allShelves ?? []).filter((shelf) =>
+    (memberShelfIds ?? []).includes(shelf.id),
+  );
 
   if (isLoading) {
     return (
@@ -109,6 +121,29 @@ export default function BookDetailsScreen() {
         </View>
       </View>
 
+      {/* カスタム本棚への追加 */}
+      <View style={styles.customShelfSection}>
+        <Text style={styles.sectionTitle}>カスタム本棚</Text>
+        {memberShelfNames.length > 0 && (
+          <View style={styles.shelfChips}>
+            {memberShelfNames.map((shelf) => (
+              <View key={shelf.id} style={styles.shelfChip}>
+                <Text style={styles.shelfChipText}>{shelf.name}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+        <TouchableOpacity
+          style={styles.addToShelfButton}
+          onPress={() => setShelfModalVisible(true)}
+        >
+          <Ionicons name="albums-outline" size={18} color={colors.primary[600]} />
+          <Text style={styles.addToShelfButtonText}>
+            {memberShelfNames.length > 0 ? '本棚を編集' : 'カスタム本棚に追加'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       {/* 詳細説明 */}
       <View style={styles.descriptionSection}>
         <Text style={styles.sectionTitle}>作品紹介</Text>
@@ -146,6 +181,15 @@ export default function BookDetailsScreen() {
           <Text style={styles.noReviewsText}>まだレビューがありません。</Text>
         )}
       </View>
+
+      {book && (
+        <AddToShelfModal
+          visible={shelfModalVisible}
+          book={book}
+          dbBookId={dbBookId}
+          onClose={() => setShelfModalVisible(false)}
+        />
+      )}
     </ScrollView>
   );
 }
@@ -230,6 +274,43 @@ const styles = StyleSheet.create({
     borderColor: colors.primary[500],
   },
   activeStatusText: {
+    color: colors.primary[600],
+  },
+  customShelfSection: {
+    gap: 12,
+  },
+  shelfChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  shelfChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: colors.primary[50],
+    borderWidth: 1,
+    borderColor: colors.primary[200],
+  },
+  shelfChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary[600],
+  },
+  addToShelfButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.primary[200],
+    backgroundColor: colors.primary[50],
+  },
+  addToShelfButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
     color: colors.primary[600],
   },
   descriptionSection: {

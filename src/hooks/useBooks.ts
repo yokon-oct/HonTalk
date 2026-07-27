@@ -77,7 +77,7 @@ export function useBookPageData(id: string) {
           if (currentUserId) {
             readingRecord = await bookService.getReadingRecord(currentUserId, dbBookId);
           }
-          return { book: dummyBook, readingRecord };
+          return { book: dummyBook, readingRecord, dbBookId };
         }
       } else {
         googleBooksId = id;
@@ -98,6 +98,7 @@ export function useBookPageData(id: string) {
       return {
         book: bookDetail,
         readingRecord,
+        dbBookId,
       };
     },
     enabled: !!id,

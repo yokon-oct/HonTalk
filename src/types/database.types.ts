@@ -525,6 +525,69 @@ export interface Database {
         };
         Returns: Json;
       };
+      get_book_ranking: {
+        Args: {
+          p_period?: string;
+          p_viewer_id?: string | null;
+          p_limit?: number;
+        };
+        Returns: {
+          book_id: string;
+          title: string;
+          author: string;
+          cover_image_url: string | null;
+          genre: string | null;
+          average_rating: number;
+          rating_count: number;
+          new_registrations: number;
+          new_reviews: number;
+          period_likes: number;
+          score: number;
+        }[];
+      };
+      get_review_ranking: {
+        Args: {
+          p_period?: string;
+          p_viewer_id?: string | null;
+          p_limit?: number;
+        };
+        Returns: {
+          review_id: string;
+          content: string;
+          has_spoiler: boolean;
+          like_count: number;
+          comment_count: number;
+          created_at: string;
+          user_id: string;
+          user_nickname: string;
+          user_avatar_url: string | null;
+          book_id: string | null;
+          book_title: string | null;
+          book_author: string | null;
+          book_cover_url: string | null;
+          rating: number | null;
+          period_likes: number;
+          period_comments: number;
+          score: number;
+        }[];
+      };
+      get_user_ranking: {
+        Args: {
+          p_period?: string;
+          p_viewer_id?: string | null;
+          p_limit?: number;
+        };
+        Returns: {
+          user_id: string;
+          nickname: string;
+          avatar_url: string | null;
+          bio: string | null;
+          new_followers: number;
+          new_reviews: number;
+          period_likes_received: number;
+          score: number;
+        }[];
+      };
     };
     Views: {};
     CompositeTypes: {};
