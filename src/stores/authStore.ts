@@ -43,6 +43,15 @@ const initialState = {
   isInitialized: false,
 };
 
+/** ログアウト後の状態（認証情報のみクリアし、初期化済みフラグは維持） */
+const loggedOutState = {
+  session: null,
+  user: null,
+  profile: null,
+  isLoading: false,
+  isInitialized: true,
+};
+
 export const useAuthStore = create<AuthState>((set) => ({
   ...initialState,
 
@@ -58,5 +67,5 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   setInitialized: (isInitialized) => set({ isInitialized }),
 
-  reset: () => set(initialState),
+  reset: () => set(loggedOutState),
 }));

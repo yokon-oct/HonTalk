@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -7,15 +7,24 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
+  useWindowDimensions,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useNavigation } from 'expo-router';
 import { colors } from '@/theme/colors';
 import { useReadingRecords } from '@/hooks/useBooks';
+import { useShelves } from '@/hooks/useShelves';
 import { useAuthStore } from '@/stores/authStore';
+import { CustomShelfBooksPanel } from '@/components/shelf/CustomShelfBooksPanel';
 import { Database } from '@/types/database.types';
 
 type ReadingStatus = Database['public']['Tables']['reading_records']['Row']['status'];
 type FilterOption = ReadingStatus | 'all';
+
+type ShelfPage =
+  | { type: 'main'; id: 'main' }
+  | { type: 'custom'; id: string; name: string };
 
 const FILTERS: { label: string; value: FilterOption }[] = [
   { label: 'すべて', value: 'all' },
@@ -26,13 +35,124 @@ const FILTERS: { label: string; value: FilterOption }[] = [
 
 export default function ShelfTabScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
+  const { width: pageWidth } = useWindowDimensions();
   const { user } = useAuthStore();
   const [filter, setFilter] = useState<FilterOption>('all');
+  const [currentPage, setCurrentPage] = useState(0);
+  const pagerRef = useRef<FlatList<ShelfPage>>(null);
 
   const { data: records, isLoading, isError, refetch } = useReadingRecords(user?.id ?? '');
+  const { data: customShelves } = useShelves();
 
   const filteredRecords =
     records?.filter((r) => filter === 'all' || r.status === filter) ?? [];
+
+  const pages = useMemo<ShelfPage[]>(() => {
+    const list: ShelfPage[] = [{ type: 'main', id: 'main' }];
+    for (const shelf of customShelves ?? []) {
+      list.push({ type: 'custom', id: shelf.id, name: shelf.name });
+    }
+    return list;
+  }, [customShelves]);
+
+  const hasCustomShelves = pages.length > 1;
+
+  useEffect(() => {
+    if (currentPage >= pages.length) {
+      setCurrentPage(0);
+      pagerRef.current?.scrollToOffset({ offset: 0, animated: false });
+    }
+  }, [pages.length, currentPage]);
+
+  useEffect(() => {
+    const page = pages[currentPage];
+    navigation.setOptions({
+      title: page?.type === 'custom' ? page.name : '本棚',
+    });
+  }, [currentPage, pages, navigation]);
+
+  const handlePageChange = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const nextPage = Math.round(event.nativeEvent.contentOffset.x / pageWidth);
+      setCurrentPage(nextPage);
+    },
+    [pageWidth],
+  );
+
+  const renderMainShelf = () => (
+    <FlatList
+      data={filteredRecords}
+      keyExtractor={(item) => item.id}
+      numColumns={3}
+      nestedScrollEnabled
+      contentContainerStyle={styles.listContent}
+      columnWrapperStyle={styles.row}
+      refreshing={false}
+      onRefresh={refetch}
+      ListHeaderComponent={
+        <View style={styles.filterContainer}>
+          {FILTERS.map(({ label, value }) => {
+            const isActive = filter === value;
+            return (
+              <TouchableOpacity
+                key={value}
+                style={[styles.filterButton, isActive && styles.filterButtonActive]}
+                onPress={() => setFilter(value)}
+              >
+                <Text style={[styles.filterText, isActive && styles.filterTextActive]}>
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      }
+      renderItem={({ item }) => (
+        <TouchableOpacity
+          style={styles.bookItem}
+          onPress={() => router.push(`/book/${item.book_id}`)}
+          activeOpacity={0.8}
+        >
+          <Image
+            source={{
+              uri:
+                item.book.cover_image_url ||
+                'https://via.placeholder.com/150x200.png?text=No+Cover',
+            }}
+            style={styles.bookCover}
+          />
+          <Text style={styles.bookTitle} numberOfLines={2}>
+            {item.book.title}
+          </Text>
+        </TouchableOpacity>
+      )}
+      ListEmptyComponent={
+        <View style={styles.center}>
+          <Text style={styles.emptyTitle}>本棚はまだ空です</Text>
+          <Text style={styles.emptyText}>
+            本を検索して本棚に追加してみましょう。
+          </Text>
+          <TouchableOpacity
+            style={styles.searchButton}
+            onPress={() => router.push('/(tabs)/search')}
+          >
+            <Text style={styles.searchButtonText}>本を探す</Text>
+          </TouchableOpacity>
+        </View>
+      }
+    />
+  );
+
+  const renderPage = ({ item }: { item: ShelfPage }) => (
+    <View style={[styles.page, { width: pageWidth }]}>
+      {item.type === 'main' ? (
+        renderMainShelf()
+      ) : (
+        <CustomShelfBooksPanel shelfId={item.id} shelfName={item.name} />
+      )}
+    </View>
+  );
 
   if (!user?.id || isLoading) {
     return (
@@ -55,67 +175,34 @@ export default function ShelfTabScreen() {
 
   return (
     <View style={styles.container}>
-      {/* フィルタータブ */}
-      <View style={styles.filterContainer}>
-        {FILTERS.map(({ label, value }) => {
-          const isActive = filter === value;
-          return (
-            <TouchableOpacity
-              key={value}
-              style={[styles.filterButton, isActive && styles.filterButtonActive]}
-              onPress={() => setFilter(value)}
-            >
-              <Text style={[styles.filterText, isActive && styles.filterTextActive]}>
-                {label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
       <FlatList
-        data={filteredRecords}
+        ref={pagerRef}
+        style={styles.pager}
+        horizontal
+        pagingEnabled
+        data={pages}
         keyExtractor={(item) => item.id}
-        numColumns={3}
-        contentContainerStyle={styles.listContent}
-        columnWrapperStyle={styles.row}
-        refreshing={false}
-        onRefresh={refetch}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.bookItem}
-            onPress={() => router.push(`/book/${item.book_id}`)}
-            activeOpacity={0.8}
-          >
-            <Image
-              source={{
-                uri:
-                  item.book.cover_image_url ||
-                  'https://via.placeholder.com/150x200.png?text=No+Cover',
-              }}
-              style={styles.bookCover}
-            />
-            <Text style={styles.bookTitle} numberOfLines={2}>
-              {item.book.title}
-            </Text>
-          </TouchableOpacity>
-        )}
-        ListEmptyComponent={
-          <View style={styles.center}>
-            <Text style={styles.emptyIcon}>📚</Text>
-            <Text style={styles.emptyTitle}>本棚はまだ空です</Text>
-            <Text style={styles.emptyText}>
-              本を検索して本棚に追加してみましょう。
-            </Text>
-            <TouchableOpacity
-              style={styles.searchButton}
-              onPress={() => router.push('/(tabs)/search')}
-            >
-              <Text style={styles.searchButtonText}>本を探す</Text>
-            </TouchableOpacity>
-          </View>
-        }
+        renderItem={renderPage}
+        showsHorizontalScrollIndicator={false}
+        scrollEnabled={hasCustomShelves}
+        onMomentumScrollEnd={handlePageChange}
+        getItemLayout={(_, index) => ({
+          length: pageWidth,
+          offset: pageWidth * index,
+          index,
+        })}
       />
+
+      {hasCustomShelves && (
+        <View style={styles.pageIndicator} pointerEvents="none">
+          {pages.map((page, index) => (
+            <View
+              key={page.id}
+              style={[styles.dot, index === currentPage && styles.dotActive]}
+            />
+          ))}
+        </View>
+      )}
     </View>
   );
 }
@@ -124,6 +211,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.neutral[100],
+  },
+  page: {
+    flex: 1,
+  },
+  pager: {
+    flex: 1,
   },
   center: {
     flex: 1,
@@ -148,18 +241,14 @@ const styles = StyleSheet.create({
   },
   filterContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: colors.neutral[50],
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[200],
+    paddingBottom: 12,
     gap: 8,
   },
   filterButton: {
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
-    backgroundColor: colors.neutral[100],
+    backgroundColor: colors.neutral[0],
     borderWidth: 1,
     borderColor: colors.neutral[200],
   },
@@ -201,10 +290,6 @@ const styles = StyleSheet.create({
     color: colors.neutral[800],
     textAlign: 'center',
   },
-  emptyIcon: {
-    fontSize: 56,
-    marginBottom: 16,
-  },
   emptyTitle: {
     fontSize: 18,
     fontWeight: 'bold',
@@ -228,5 +313,24 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontWeight: 'bold',
     fontSize: 14,
+  },
+  pageIndicator: {
+    position: 'absolute',
+    bottom: 12,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.neutral[300],
+  },
+  dotActive: {
+    backgroundColor: colors.primary[500],
+    width: 16,
   },
 });

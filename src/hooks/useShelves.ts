@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as shelfService from '@/services/shelfService';
 import * as bookService from '@/services/bookService';
 import { useAuthStore } from '@/stores/authStore';
+import { bookKeys } from '@/hooks/useBooks';
 
 export const shelfKeys = {
   all: ['shelves'] as const,
@@ -160,6 +161,8 @@ export function useUpdateBookShelves() {
       if (currentUserId) {
         queryClient.invalidateQueries({ queryKey: shelfKeys.list(currentUserId) });
         queryClient.invalidateQueries({ queryKey: shelfKeys.forBook(currentUserId, dbBook.id) });
+        // 書籍詳細画面の dbBookId も更新されるよう page_data を再取得する
+        queryClient.invalidateQueries({ queryKey: bookKeys.all });
       }
       queryClient.invalidateQueries({ queryKey: shelfKeys.all });
     },

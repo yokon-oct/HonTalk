@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Animated,
+  Platform,
   type TextInputProps,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -105,6 +106,12 @@ export function FormInput<T extends FieldValues>({
               placeholderTextColor={colors.neutral[400]}
               secureTextEntry={isPassword && !isPasswordVisible}
               autoCapitalize="none"
+              autoCorrect={false}
+              importantForAutofill={
+                Platform.OS === 'android'
+                  ? (textInputProps.importantForAutofill ?? 'yes')
+                  : undefined
+              }
               {...textInputProps}
             />
             {isPassword && (

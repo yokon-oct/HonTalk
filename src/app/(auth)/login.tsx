@@ -8,15 +8,17 @@
  * - 読書アプリらしい温かみのあるプレミアムUI
  */
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   StyleSheet,
   View,
   Text,
+  Image,
   TouchableOpacity,
   KeyboardAvoidingView,
   ScrollView,
   Platform,
+  Switch,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -25,6 +27,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 
 import { loginSchema, type LoginFormData } from '@/validators/auth';
 import { useAuth } from '@/hooks/useAuth';
+import {
+  loadSavedCredentials,
+  saveCredentials,
+  clearSavedCredentials,
+} from '@/services/credentialStorage';
 import { FormInput } from '@/components/ui/FormInput';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { colors } from '@/theme/colors';
@@ -34,8 +41,9 @@ import { spacing, borderRadius } from '@/theme/spacing';
 export default function LoginScreen() {
   const router = useRouter();
   const { signInWithEmail, isLoading } = useAuth();
+  const [rememberCredentials, setRememberCredentials] = useState(false);
 
-  const { control, handleSubmit } = useForm<LoginFormData>({
+  const { control, handleSubmit, reset } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
       email: '',
@@ -43,9 +51,22 @@ export default function LoginScreen() {
     },
   });
 
+  useEffect(() => {
+    loadSavedCredentials().then((saved) => {
+      if (!saved) return;
+      reset(saved);
+      setRememberCredentials(true);
+    });
+  }, [reset]);
+
   const onSubmit = async (data: LoginFormData) => {
     const result = await signInWithEmail(data.email, data.password);
     if (result.success) {
+      if (rememberCredentials) {
+        await saveCredentials(data.email, data.password);
+      } else {
+        await clearSavedCredentials();
+      }
       router.replace('/(tabs)');
     }
   };
@@ -64,9 +85,12 @@ export default function LoginScreen() {
         >
           {/* ヘッダー */}
           <View style={styles.header}>
-            <View style={styles.logoContainer}>
-              <Text style={styles.logoIcon}>📚</Text>
-            </View>
+            <Image
+              source={require('../../../assets/images/hontalk-logo-rounded.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
+              accessibilityLabel="HonTalk ロゴ"
+            />
             <Text style={styles.title}>HonTalk</Text>
             <Text style={styles.subtitle}>本でつながる、読書コミュニティ</Text>
           </View>
@@ -79,8 +103,8 @@ export default function LoginScreen() {
               label="メールアドレス"
               icon="mail-outline"
               placeholder="example@email.com"
-              keyboardType="email-address"
-              autoComplete="email"
+              keyboardType="default"
+              autoComplete="username"
               textContentType="emailAddress"
               returnKeyType="next"
             />
@@ -92,10 +116,22 @@ export default function LoginScreen() {
               icon="lock-closed-outline"
               placeholder="8文字以上"
               isPassword
-              autoComplete="password"
+              keyboardType="default"
+              autoComplete="current-password"
               textContentType="password"
+              passwordRules="minlength: 8;"
               returnKeyType="done"
             />
+
+            <View style={styles.rememberRow}>
+              <Text style={styles.rememberLabel}>ログイン情報を保存する</Text>
+              <Switch
+                value={rememberCredentials}
+                onValueChange={setRememberCredentials}
+                trackColor={{ false: colors.neutral[300], true: colors.primary[500] }}
+                thumbColor="#ffffff"
+              />
+            </View>
 
             <PrimaryButton
               title="ログイン"
@@ -150,22 +186,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing['4xl'],
   },
-  logoContainer: {
+  logoImage: {
     width: 80,
     height: 80,
-    borderRadius: borderRadius['2xl'],
-    backgroundColor: colors.primary[50],
-    alignItems: 'center',
-    justifyContent: 'center',
     marginBottom: spacing.lg,
     shadowColor: colors.primary[500],
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 12,
     elevation: 4,
-  },
-  logoIcon: {
-    fontSize: 40,
   },
   title: {
     ...typography.preset.h1,
@@ -189,6 +218,17 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 12,
     elevation: 3,
+  },
+  rememberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.lg,
+    paddingHorizontal: spacing['2xs'],
+  },
+  rememberLabel: {
+    ...typography.preset.bodySmall,
+    color: colors.neutral[600],
   },
   submitButton: {
     marginTop: spacing.sm,

@@ -175,14 +175,19 @@ export async function getShelvesContainingBook(
   userId: string,
   bookId: string,
 ): Promise<string[]> {
+  const userShelves = await getShelvesByUser(userId);
+  if (userShelves.length === 0) return [];
+
+  const shelfIds = userShelves.map((shelf) => shelf.id);
+
   const { data, error } = await supabase
     .from('shelf_books')
-    .select('shelf_id, shelf:shelves!inner(user_id)')
+    .select('shelf_id')
     .eq('book_id', bookId)
-    .eq('shelf.user_id', userId);
+    .in('shelf_id', shelfIds);
 
   if (error) throw error;
-  return ((data ?? []) as unknown as { shelf_id: string }[]).map((row) => row.shelf_id);
+  return (data ?? []).map((row) => row.shelf_id);
 }
 
 /**
@@ -191,9 +196,13 @@ export async function getShelvesContainingBook(
 export async function addBookToShelf(shelfId: string, bookId: string): Promise<void> {
   const { error } = await supabase
     .from('shelf_books')
-    .upsert({ shelf_id: shelfId, book_id: bookId }, { onConflict: 'shelf_id,book_id', ignoreDuplicates: true });
+    .insert({ shelf_id: shelfId, book_id: bookId });
 
-  if (error) throw error;
+  if (error) {
+    // 23505 = unique_violation（既に追加済み）
+    if (error.code === '23505') return;
+    throw error;
+  }
 }
 
 /**
