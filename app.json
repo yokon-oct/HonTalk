@@ -62,7 +62,8 @@
         {
           "icon": "./assets/images/icon.png",
           "color": "#F5E6D3",
-          "defaultChannel": "default"
+          "defaultChannel": "default",
+          "enableBackgroundRemoteNotifications": true
         }
       ]
     ],

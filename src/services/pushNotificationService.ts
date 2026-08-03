@@ -11,6 +11,8 @@ import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
+import { supabase } from './supabase';
+
 // フォアグラウンド時にも通知バナー・サウンド・バッジを表示する
 // （ルートレイアウトの初回レンダリング前に登録される必要があるため、モジュール読み込み時に実行）
 Notifications.setNotificationHandler({
@@ -108,4 +110,34 @@ export async function registerForPushNotificationsAsync(): Promise<RegisterPushR
 export async function getPushPermissionStatusAsync() {
   const { status } = await Notifications.getPermissionsAsync();
   return status;
+}
+
+export type SendTestPushResult =
+  | { ok: true; sent: number }
+  | { ok: false; code: string; message: string };
+
+/**
+ * ログイン中ユーザー自身の端末へテスト用プッシュ通知を送信する
+ * （send-test-push-notification Edge Function を呼び出す）
+ */
+export async function sendTestPushNotification(): Promise<SendTestPushResult> {
+  const { data, error } = await supabase.functions.invoke('send-test-push-notification');
+
+  if (error) {
+    return {
+      ok: false,
+      code: 'invoke_failed',
+      message: error.message || 'テスト通知の送信に失敗しました',
+    };
+  }
+
+  if (data?.error) {
+    return {
+      ok: false,
+      code: data.error,
+      message: data.message || 'テスト通知の送信に失敗しました',
+    };
+  }
+
+  return { ok: true, sent: data?.sent ?? 1 };
 }

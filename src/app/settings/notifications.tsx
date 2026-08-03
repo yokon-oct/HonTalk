@@ -1,18 +1,24 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   StyleSheet, View, Text, Switch,
-  ScrollView, ActivityIndicator, TouchableOpacity, Platform, Linking,
+  ScrollView, ActivityIndicator, TouchableOpacity, Platform, Linking, Share,
 } from 'react-native';
 import * as Device from 'expo-device';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/theme/colors';
 import { useProfile, useUpdateProfile } from '@/hooks/useProfile';
 import { useAuthStore } from '@/stores/authStore';
+import { useUIStore } from '@/stores/uiStore';
 import {
   getPushPermissionStatusAsync,
   registerForPushNotificationsAsync,
+  sendTestPushNotification,
 } from '@/services/pushNotificationService';
-import { registerPushToken, setCurrentPushToken } from '@/services/pushTokenService';
+import {
+  registerPushToken,
+  setCurrentPushToken,
+  getCurrentPushToken,
+} from '@/services/pushTokenService';
 
 type PushStatus = 'checking' | 'granted' | 'denied' | 'undetermined' | 'unsupported';
 
@@ -51,7 +57,10 @@ export default function NotificationsSettingsScreen() {
   const [settings, setSettings] = useState<NotificationSettings>(DEFAULT_SETTINGS);
   const [pushStatus, setPushStatus] = useState<PushStatus>('checking');
   const [isRequestingPush, setIsRequestingPush] = useState(false);
+  const [isSendingTest, setIsSendingTest] = useState(false);
+  const [registeredToken, setRegisteredToken] = useState<string | null>(null);
   const userId = useAuthStore((state) => state.user?.id);
+  const showToast = useUIStore((s) => s.showToast);
 
   useEffect(() => {
     if (profile?.notification_settings) {
@@ -101,12 +110,60 @@ export default function NotificationsSettingsScreen() {
       const result = await registerForPushNotificationsAsync();
       if (result.status === 'success' && userId) {
         setCurrentPushToken(result.token);
+        setRegisteredToken(result.token);
         await registerPushToken(userId, result.token, Platform.OS === 'ios' ? 'ios' : 'android', Device.deviceName);
       }
     } finally {
       setIsRequestingPush(false);
       checkPushStatus();
     }
+  };
+
+  useEffect(() => {
+    if (pushStatus !== 'granted' || !userId) return;
+
+    const existing = getCurrentPushToken();
+    if (existing) {
+      setRegisteredToken(existing);
+      return;
+    }
+
+    (async () => {
+      const result = await registerForPushNotificationsAsync();
+      if (result.status === 'success') {
+        setCurrentPushToken(result.token);
+        setRegisteredToken(result.token);
+        await registerPushToken(
+          userId,
+          result.token,
+          Platform.OS === 'ios' ? 'ios' : 'android',
+          Device.deviceName,
+        );
+      }
+    })();
+  }, [pushStatus, userId]);
+
+  const handleSendTestPush = async () => {
+    setIsSendingTest(true);
+    try {
+      const result = await sendTestPushNotification();
+      if (result.ok) {
+        showToast({
+          message: `テスト通知を送信しました（${result.sent} 端末）`,
+          type: 'success',
+        });
+      } else {
+        showToast({ message: result.message, type: 'error' });
+      }
+    } finally {
+      setIsSendingTest(false);
+    }
+  };
+
+  const handleShareToken = async () => {
+    const token = registeredToken ?? getCurrentPushToken();
+    if (!token) return;
+    await Share.share({ message: token });
   };
 
   if (isLoading) {
@@ -151,6 +208,39 @@ export default function NotificationsSettingsScreen() {
                   {pushStatus === 'denied' ? '設定を開く' : '有効にする'}
                 </Text>
               )}
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      {pushStatus === 'granted' && (
+        <View style={styles.testCard}>
+          <Text style={styles.testTitle}>実機テスト</Text>
+          <Text style={styles.testDesc}>
+            この端末へテスト通知を送信して、プッシュ通知が届くか確認できます。
+            アプリをバックグラウンドにしてから送信すると確認しやすいです。
+          </Text>
+          <TouchableOpacity
+            style={styles.testButton}
+            onPress={handleSendTestPush}
+            disabled={isSendingTest}
+          >
+            {isSendingTest ? (
+              <ActivityIndicator size="small" color={colors.neutral[0]} />
+            ) : (
+              <>
+                <Ionicons name="paper-plane-outline" size={16} color={colors.neutral[0]} />
+                <Text style={styles.testButtonText}>テスト通知を送信</Text>
+              </>
+            )}
+          </TouchableOpacity>
+          {(registeredToken ?? getCurrentPushToken()) && (
+            <TouchableOpacity style={styles.tokenRow} onPress={handleShareToken}>
+              <Text style={styles.tokenLabel}>Push Token</Text>
+              <Text style={styles.tokenValue} numberOfLines={1}>
+                {(registeredToken ?? getCurrentPushToken())?.slice(0, 28)}...
+              </Text>
+              <Ionicons name="share-outline" size={16} color={colors.neutral[400]} />
             </TouchableOpacity>
           )}
         </View>
@@ -229,6 +319,40 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   pushButtonText: { color: colors.neutral[0], fontSize: 13, fontWeight: '600' },
+  testCard: {
+    backgroundColor: colors.neutral[0],
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  testTitle: { fontSize: 15, fontWeight: '600', color: colors.neutral[900], marginBottom: 6 },
+  testDesc: { fontSize: 12, color: colors.neutral[500], lineHeight: 18, marginBottom: 14 },
+  testButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: colors.primary[500],
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+  testButtonText: { color: colors.neutral[0], fontSize: 14, fontWeight: '600' },
+  tokenRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 14,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: colors.neutral[100],
+    gap: 8,
+  },
+  tokenLabel: { fontSize: 11, color: colors.neutral[400], fontWeight: '600' },
+  tokenValue: { flex: 1, fontSize: 11, color: colors.neutral[500], fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
   description: {
     fontSize: 13,
     color: colors.neutral[500],

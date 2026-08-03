@@ -55,7 +55,11 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "push:test": "node scripts/send-test-push.mjs",
+    "ios:setup": "bash scripts/setup-ios-build.sh",
+    "ios:build": "eas build --profile development --platform ios",
+    "ios:device": "eas device:create"
   },
   "private": true
 }
