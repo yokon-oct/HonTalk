@@ -11,6 +11,11 @@ import { useAuthStore } from '@/stores/authStore';
 import { useUIStore } from '@/stores/uiStore';
 import { handleError } from '@/utils/errorHandler';
 import { unregisterCurrentPushToken, setCurrentPushToken } from '@/services/pushTokenService';
+import {
+  signInWithGoogleOAuth,
+  signInWithAppleNative,
+} from '@/services/oauthService';
+import type { Session } from '@supabase/supabase-js';
 import type { Profile } from '@/stores/authStore';
 
 export function useAuth() {
@@ -55,6 +60,69 @@ export function useAuth() {
     },
     [setProfile],
   );
+
+  /**
+   * セッション確立後の共通処理
+   */
+  const completeSignIn = useCallback(
+    async (session: Session | null) => {
+      if (!session?.user) return { success: false as const };
+
+      setSession(session);
+      await fetchProfile(session.user.id);
+      return { success: true as const };
+    },
+    [setSession, fetchProfile],
+  );
+
+  /**
+   * Google OAuth でログイン / 新規登録
+   */
+  const signInWithGoogle = useCallback(async () => {
+    setLoading(true);
+    try {
+      const result = await signInWithGoogleOAuth();
+      if (result.cancelled) {
+        return { success: false, cancelled: true };
+      }
+      return await completeSignIn(result.session);
+    } catch (error) {
+      // コールバック待ちが失敗しても、別経路でセッションが確立されている場合がある
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (session?.user) {
+        return await completeSignIn(session);
+      }
+
+      console.error('[Auth] Google sign-in failed:', error);
+      const appError = handleError(error);
+      showToast({ message: appError.message, type: 'error' });
+      return { success: false, error: appError };
+    } finally {
+      setLoading(false);
+    }
+  }, [setLoading, completeSignIn, showToast]);
+
+  /**
+   * Apple Sign In でログイン / 新規登録（iOS）
+   */
+  const signInWithApple = useCallback(async () => {
+    setLoading(true);
+    try {
+      const result = await signInWithAppleNative();
+      if (result.cancelled) {
+        return { success: false, cancelled: true };
+      }
+      return await completeSignIn(result.session);
+    } catch (error) {
+      const appError = handleError(error);
+      showToast({ message: appError.message, type: 'error' });
+      return { success: false, error: appError };
+    } finally {
+      setLoading(false);
+    }
+  }, [setLoading, completeSignIn, showToast]);
 
   /**
    * メール + パスワードでログイン
@@ -235,6 +303,8 @@ export function useAuth() {
 
     // アクション
     signInWithEmail,
+    signInWithGoogle,
+    signInWithApple,
     signUpWithEmail,
     signOut,
     updateEmail,

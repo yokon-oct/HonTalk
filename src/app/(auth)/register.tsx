@@ -29,6 +29,7 @@ import { registerSchema, type RegisterFormData } from '@/validators/auth';
 import { useAuth } from '@/hooks/useAuth';
 import { FormInput } from '@/components/ui/FormInput';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { SocialAuthButtons } from '@/components/auth/SocialAuthButtons';
 import { colors } from '@/theme/colors';
 import { typography } from '@/theme/typography';
 import { spacing, borderRadius } from '@/theme/spacing';
@@ -205,6 +206,17 @@ export default function RegisterScreen() {
               style={styles.submitButton}
             />
 
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>または</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <SocialAuthButtons
+              disabled={isLoading}
+              onSuccess={() => router.replace('/(tabs)')}
+            />
+
             {/* 利用規約 */}
             <Text style={styles.termsText}>
               アカウントを作成すると、
@@ -290,6 +302,23 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     marginTop: spacing.sm,
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.xl,
+    marginBottom: spacing.lg,
+    width: '100%',
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.neutral[200],
+  },
+  dividerText: {
+    ...typography.preset.caption,
+    color: colors.neutral[400],
+    marginHorizontal: spacing.lg,
   },
 
   // パスワード強度

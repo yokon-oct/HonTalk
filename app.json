@@ -10,6 +10,7 @@
     "ios": {
       "bundleIdentifier": "com.hontalk.app",
       "supportsTablet": true,
+      "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -65,7 +66,8 @@
           "defaultChannel": "default",
           "enableBackgroundRemoteNotifications": true
         }
-      ]
+      ],
+      "expo-apple-authentication"
     ],
     "notification": {
       "icon": "./assets/images/icon.png",

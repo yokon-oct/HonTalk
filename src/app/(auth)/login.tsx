@@ -34,6 +34,7 @@ import {
 } from '@/services/credentialStorage';
 import { FormInput } from '@/components/ui/FormInput';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { SocialAuthButtons } from '@/components/auth/SocialAuthButtons';
 import { colors } from '@/theme/colors';
 import { typography } from '@/theme/typography';
 import { spacing, borderRadius } from '@/theme/spacing';
@@ -141,7 +142,7 @@ export default function LoginScreen() {
             />
           </View>
 
-          {/* フッター */}
+          {/* ソーシャルログイン */}
           <View style={styles.footer}>
             <View style={styles.dividerRow}>
               <View style={styles.dividerLine} />
@@ -149,8 +150,13 @@ export default function LoginScreen() {
               <View style={styles.dividerLine} />
             </View>
 
+            <SocialAuthButtons
+              disabled={isLoading}
+              onSuccess={() => router.replace('/(tabs)')}
+            />
+
             <TouchableOpacity
-              style={styles.registerButton}
+              style={[styles.registerButton, styles.registerButtonSpaced]}
               onPress={() => router.push('/(auth)/register')}
               activeOpacity={0.7}
             >
@@ -262,6 +268,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.neutral[200],
     backgroundColor: colors.neutral[0],
+  },
+  registerButtonSpaced: {
+    marginTop: spacing.xl,
   },
   registerButtonText: {
     ...typography.preset.bodySmall,
