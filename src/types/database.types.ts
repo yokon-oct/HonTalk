@@ -356,6 +356,27 @@ export interface Database {
           created_at?: string;
         };
       };
+      mutes: {
+        Row: {
+          id: string;
+          muter_id: string;
+          muted_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          muter_id: string;
+          muted_id: string;
+          created_at?: string;
+        };
+        Relationships: any[];
+        Update: {
+          id?: string;
+          muter_id?: string;
+          muted_id?: string;
+          created_at?: string;
+        };
+      };
       reports: {
         Row: {
           id: string;
@@ -503,6 +524,26 @@ export interface Database {
         Returns: {
           block_id: string;
           blocked_at: string;
+          user_id: string;
+          nickname: string;
+          avatar_url: string | null;
+          bio: string;
+        }[];
+      };
+      is_muting: {
+        Args: {
+          p_muter_id: string;
+          p_muted_id: string;
+        };
+        Returns: boolean;
+      };
+      get_muted_users: {
+        Args: {
+          p_user_id: string;
+        };
+        Returns: {
+          mute_id: string;
+          muted_at: string;
           user_id: string;
           nickname: string;
           avatar_url: string | null;

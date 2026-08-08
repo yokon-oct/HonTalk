@@ -19,6 +19,8 @@ export default function SettingsLayout() {
       <Stack.Screen name="email-edit" options={{ title: 'メールアドレス変更' }} />
       <Stack.Screen name="notifications" options={{ title: '通知設定' }} />
       <Stack.Screen name="privacy" options={{ title: 'プライバシー設定' }} />
+      <Stack.Screen name="muted-users" options={{ title: 'ミュートしたユーザー' }} />
+      <Stack.Screen name="blocked-users" options={{ title: 'ブロックしたユーザー' }} />
     </Stack>
   );
 }

@@ -11,6 +11,7 @@ import { useReadingRecords } from '@/hooks/useBooks';
 import { useReviewsByUser } from '@/hooks/useReviews';
 import { useIsFollowing, useToggleFollow } from '@/hooks/useFollow';
 import { useIsBlocking, useToggleBlock } from '@/hooks/useBlock';
+import { useIsMuting, useToggleMute } from '@/hooks/useMute';
 import { ReviewCard } from '@/components/review/ReviewCard';
 import { ReportModal } from '@/components/social/ReportModal';
 import { useAuthStore } from '@/stores/authStore';
@@ -28,6 +29,8 @@ export default function UserProfileScreen() {
   const { mutate: toggleFollow, isPending: followPending } = useToggleFollow();
   const { data: isBlocking } = useIsBlocking(id || '');
   const { mutate: toggleBlock, isPending: blockPending } = useToggleBlock();
+  const { data: isMuting } = useIsMuting(id || '');
+  const { mutate: toggleMute, isPending: mutePending } = useToggleMute();
 
   const handleToggleFollow = () => {
     if (!id || followPending) return;
@@ -36,6 +39,24 @@ export default function UserProfileScreen() {
 
   const { data: readingRecords, isLoading: recordsLoading } = useReadingRecords(id);
   const { data: reviews, isLoading: reviewsLoading } = useReviewsByUser(id || '');
+
+  const handleMuteToggle = () => {
+    if (!id || mutePending) return;
+    const actionLabel = isMuting ? 'ミュートを解除' : 'ミュートする';
+    Alert.alert(
+      isMuting ? 'ミュートを解除しますか？' : `${profileData?.nickname ?? 'このユーザー'}をミュートしますか？`,
+      isMuting
+        ? 'ミュートを解除すると、このユーザーの投稿がタイムラインに表示されるようになります。'
+        : 'ミュートすると、このユーザーの投稿がタイムラインに表示されなくなります。プロフィールは引き続き閲覧できます。',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: actionLabel,
+          onPress: () => toggleMute({ targetId: id, isMuting: !!isMuting }),
+        },
+      ]
+    );
+  };
 
   const handleBlockToggle = () => {
     if (!id || blockPending) return;
@@ -57,18 +78,22 @@ export default function UserProfileScreen() {
   };
 
   const handleMoreOptions = () => {
+    const muteLabel = isMuting ? 'ミュートを解除' : 'ミュートする';
+    const blockLabel = isBlocking
+      ? 'ブロックを解除'
+      : `${profileData?.nickname ?? 'ユーザー'}をブロック`;
+
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: isBlocking
-            ? ['キャンセル', 'ブロックを解除', 'このユーザーを通報']
-            : ['キャンセル', `${profileData?.nickname ?? 'ユーザー'}をブロック`, 'このユーザーを通報'],
+          options: ['キャンセル', muteLabel, blockLabel, 'このユーザーを通報'],
           cancelButtonIndex: 0,
-          destructiveButtonIndex: isBlocking ? undefined : 1,
+          destructiveButtonIndex: isBlocking ? undefined : 2,
         },
         (buttonIndex) => {
-          if (buttonIndex === 1) handleBlockToggle();
-          if (buttonIndex === 2) setReportModalVisible(true);
+          if (buttonIndex === 1) handleMuteToggle();
+          if (buttonIndex === 2) handleBlockToggle();
+          if (buttonIndex === 3) setReportModalVisible(true);
         }
       );
     } else {
@@ -78,6 +103,7 @@ export default function UserProfileScreen() {
         undefined,
         [
           { text: 'キャンセル', style: 'cancel' },
+          { text: muteLabel, onPress: handleMuteToggle },
           { text: isBlocking ? 'ブロックを解除' : 'ブロックする', onPress: handleBlockToggle },
           { text: 'このユーザーを通報', onPress: () => setReportModalVisible(true) },
         ]
@@ -147,11 +173,17 @@ export default function UserProfileScreen() {
         
         <View style={styles.headerRight}>
           <Text style={styles.name}>{profile.nickname}</Text>
-          {/* ブロック中バナー */}
+          {/* ブロック中 / ミュート中バナー */}
           {isBlocking && (
             <View style={styles.blockBanner}>
               <Ionicons name="ban" size={14} color={colors.neutral[0]} />
               <Text style={styles.blockBannerText}>ブロック中</Text>
+            </View>
+          )}
+          {!isBlocking && isMuting && (
+            <View style={styles.muteBanner}>
+              <Ionicons name="volume-mute" size={14} color={colors.neutral[0]} />
+              <Text style={styles.muteBannerText}>ミュート中</Text>
             </View>
           )}
           {/* フォローボタン (自分のプロフィールでない場合、かつブロックしていない場合のみ) */}
@@ -528,6 +560,22 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   blockBannerText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.neutral[0],
+  },
+  muteBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.neutral[400],
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    alignSelf: 'flex-start',
+    gap: 4,
+    marginBottom: 8,
+  },
+  muteBannerText: {
     fontSize: 11,
     fontWeight: '600',
     color: colors.neutral[0],
