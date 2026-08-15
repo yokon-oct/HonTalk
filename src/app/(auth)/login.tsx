@@ -87,7 +87,7 @@ export default function LoginScreen() {
           {/* ヘッダー */}
           <View style={styles.header}>
             <Image
-              source={require('../../../assets/images/hontalk-logo-rounded.png')}
+              source={require('../../../assets/images/hontalk-logo.png')}
               style={styles.logoImage}
               resizeMode="contain"
               accessibilityLabel="HonTalk ロゴ"
