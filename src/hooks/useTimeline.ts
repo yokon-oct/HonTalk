@@ -1,11 +1,13 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/supabase';
 import { useAuthStore } from '@/stores/authStore';
+import { handleError } from '@/utils/errorHandler';
 import type { ReviewWithDetails } from '@/services/reviewService';
 
 export const timelineKeys = {
   all: ['timeline'] as const,
-  recent: ['timeline', 'recent'] as const,
+  following: (userId: string) => [...timelineKeys.all, 'following', userId] as const,
+  recent: (userId?: string) => [...timelineKeys.all, 'recent', userId ?? ''] as const,
 };
 
 const TIMELINE_LIMIT = 10;
@@ -51,8 +53,7 @@ async function fetchTimelinePage(
   });
 
   if (error) {
-    console.error('get_timeline RPC Error:', error);
-    throw new Error('タイムラインの取得に失敗しました');
+    throw new Error(handleError(error).message);
   }
 
   const items = mapTimelineRows(data);
@@ -66,7 +67,7 @@ export function useTimeline() {
   const currentUserId = useAuthStore((state) => state.user?.id);
 
   return useInfiniteQuery({
-    queryKey: timelineKeys.all,
+    queryKey: timelineKeys.following(currentUserId ?? ''),
     initialPageParam: 0,
     queryFn: ({ pageParam = 0 }) =>
       fetchTimelinePage(currentUserId, pageParam, true),
@@ -79,7 +80,7 @@ export function useRecentReviews() {
   const currentUserId = useAuthStore((state) => state.user?.id);
 
   return useInfiniteQuery({
-    queryKey: [...timelineKeys.recent, currentUserId ?? ''],
+    queryKey: timelineKeys.recent(currentUserId),
     initialPageParam: 0,
     queryFn: ({ pageParam = 0 }) =>
       fetchTimelinePage(currentUserId, pageParam, false),

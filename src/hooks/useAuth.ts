@@ -7,6 +7,10 @@
 
 import { useCallback } from 'react';
 import { supabase } from '@/services/supabase';
+import { queryClient } from '@/config/queryClient';
+import { timelineKeys } from '@/hooks/useTimeline';
+import { followKeys } from '@/hooks/useFollow';
+import { profileKeys } from '@/hooks/useProfile';
 import { useAuthStore } from '@/stores/authStore';
 import { useUIStore } from '@/stores/uiStore';
 import { handleError } from '@/utils/errorHandler';
@@ -70,6 +74,12 @@ export function useAuth() {
 
       setSession(session);
       await fetchProfile(session.user.id);
+
+      // ログイン後はユーザー依存のキャッシュを破棄して再取得する
+      queryClient.invalidateQueries({ queryKey: timelineKeys.all });
+      queryClient.invalidateQueries({ queryKey: followKeys.all });
+      queryClient.invalidateQueries({ queryKey: profileKeys.all });
+
       return { success: true as const };
     },
     [setSession, fetchProfile],
@@ -141,6 +151,9 @@ export function useAuth() {
         setSession(data.session);
         if (data.session?.user) {
           await fetchProfile(data.session.user.id);
+          queryClient.invalidateQueries({ queryKey: timelineKeys.all });
+          queryClient.invalidateQueries({ queryKey: followKeys.all });
+          queryClient.invalidateQueries({ queryKey: profileKeys.all });
         }
 
         return { success: true };
@@ -178,6 +191,9 @@ export function useAuth() {
         setSession(data.session);
         if (data.session) {
           await fetchProfile(data.user.id);
+          queryClient.invalidateQueries({ queryKey: timelineKeys.all });
+          queryClient.invalidateQueries({ queryKey: followKeys.all });
+          queryClient.invalidateQueries({ queryKey: profileKeys.all });
         }
 
         showToast({ message: 'アカウントを作成しました', type: 'success' });
@@ -203,6 +219,7 @@ export function useAuth() {
       await unregisterCurrentPushToken();
       await supabase.auth.signOut();
       reset();
+      queryClient.clear();
       showToast({ message: 'ログアウトしました', type: 'info' });
     } catch (error) {
       const appError = handleError(error);
@@ -258,6 +275,7 @@ export function useAuth() {
       // 認証セッションも削除
       await supabase.auth.signOut();
       reset();
+      queryClient.clear();
 
       showToast({ message: 'アカウントを削除しました', type: 'info' });
       return { success: true };
