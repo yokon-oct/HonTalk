@@ -10,7 +10,7 @@
 -- A. mutes テーブル
 -- ==========================================
 
-CREATE TABLE public.mutes (
+CREATE TABLE IF NOT EXISTS public.mutes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     muter_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     muted_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -19,10 +19,10 @@ CREATE TABLE public.mutes (
     CHECK (muter_id != muted_id)
 );
 
-CREATE INDEX idx_mutes_muter_muted
+CREATE INDEX IF NOT EXISTS idx_mutes_muter_muted
 ON public.mutes (muter_id, muted_id);
 
-CREATE INDEX idx_mutes_muter
+CREATE INDEX IF NOT EXISTS idx_mutes_muter
 ON public.mutes (muter_id, created_at DESC);
 
 
@@ -32,14 +32,17 @@ ON public.mutes (muter_id, created_at DESC);
 
 ALTER TABLE public.mutes ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "mutes_select_own" ON public.mutes;
 CREATE POLICY "mutes_select_own"
 ON public.mutes FOR SELECT
 USING (auth.uid() = muter_id);
 
+DROP POLICY IF EXISTS "mutes_insert_own" ON public.mutes;
 CREATE POLICY "mutes_insert_own"
 ON public.mutes FOR INSERT
 WITH CHECK (auth.uid() = muter_id);
 
+DROP POLICY IF EXISTS "mutes_delete_own" ON public.mutes;
 CREATE POLICY "mutes_delete_own"
 ON public.mutes FOR DELETE
 USING (auth.uid() = muter_id);

@@ -117,16 +117,85 @@ if (!config.supabaseUrl || !config.supabaseAnonKey) {
   );
 }
 
-export const supabase: SupabaseClient<Database> = createClient<Database>(
-  SUPABASE_URL,
-  SUPABASE_ANON_KEY,
-  {
-    auth: {
-      storage: ExpoSecureStoreAdapter,
-      autoRefreshToken: true,
-      persistSession: true,
-      detectSessionInUrl: false,
-      flowType: 'pkce',
-    },
+let supabaseClient: SupabaseClient<Database>;
+let jwtRefreshInFlight: Promise<string | null> | null = null;
+
+function requestUrlOf(input: RequestInfo | URL): string {
+  if (typeof input === 'string') return input;
+  if (input instanceof URL) return input.toString();
+  return input.url;
+}
+
+function isJwtIssuedAtFuture(status: number, body: unknown): boolean {
+  if (status !== 401 && status !== 400) return false;
+  if (!body || typeof body !== 'object') return false;
+  const { code, message } = body as { code?: unknown; message?: unknown };
+  const codeText = typeof code === 'string' ? code : '';
+  const messageText = typeof message === 'string' ? message.toLowerCase() : '';
+  return (
+    messageText.includes('jwt issued at future') ||
+    (codeText === 'PGRST303' && messageText.includes('issued at future'))
+  );
+}
+
+async function refreshAccessTokenOnce(): Promise<string | null> {
+  if (!jwtRefreshInFlight) {
+    jwtRefreshInFlight = (async () => {
+      try {
+        const { data, error } = await supabaseClient.auth.refreshSession();
+        if (error || !data.session) return null;
+        return data.session.access_token;
+      } catch {
+        return null;
+      } finally {
+        jwtRefreshInFlight = null;
+      }
+    })();
+  }
+  return jwtRefreshInFlight;
+}
+
+/**
+ * PostgREST の時刻ずれ（PGRST303 JWT issued at future）を吸収する。
+ * シミュレータや Docker スリープ後に、保存済み JWT の iat がサーバー時刻より先になることがある。
+ */
+async function fetchWithJwtClockSkewRetry(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<Response> {
+  const response = await fetch(input, init);
+  const url = requestUrlOf(input);
+  if (url.includes('/auth/v1/')) return response;
+  if (response.status !== 401 && response.status !== 400) return response;
+
+  let payload: unknown;
+  try {
+    payload = await response.clone().json();
+  } catch {
+    return response;
+  }
+
+  if (!isJwtIssuedAtFuture(response.status, payload)) return response;
+
+  const accessToken = await refreshAccessTokenOnce();
+  if (!accessToken) return response;
+
+  const headers = new Headers(init?.headers);
+  headers.set('Authorization', `Bearer ${accessToken}`);
+  return fetch(input, { ...init, headers });
+}
+
+supabaseClient = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    storage: ExpoSecureStoreAdapter,
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: false,
+    flowType: 'pkce',
   },
-);
+  global: {
+    fetch: fetchWithJwtClockSkewRetry,
+  },
+});
+
+export const supabase: SupabaseClient<Database> = supabaseClient;

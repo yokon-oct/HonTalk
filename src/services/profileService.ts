@@ -53,36 +53,24 @@ export async function getProfileWithStats(
   const profile = await getProfileById(userId);
   if (!profile) return null;
 
-  // 並列で統計を取得
-  const [followingRes, followerRes, readRes, wantToReadRes] = await Promise.all([
-    supabase
-      .from('follows')
-      .select('id', { count: 'exact', head: true })
-      .eq('follower_id', userId),
-    supabase
-      .from('follows')
-      .select('id', { count: 'exact', head: true })
-      .eq('following_id', userId),
-    supabase
-      .from('reading_records')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', userId)
-      .eq('status', 'finished'),
-    supabase
-      .from('reading_records')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', userId)
-      .eq('status', 'want_to_read'),
-  ]);
+  // RLS では他人の読書記録が見えないため、SECURITY DEFINER の RPC で集計する
+  const { data: stats, error: statsError } = await supabase.rpc('get_profile_stats', {
+    p_user_id: userId,
+  });
+
+  if (statsError) throw statsError;
+
+  const parsed =
+    typeof stats === 'string' ? (JSON.parse(stats) as ProfileWithStats['stats']) : stats;
 
   return {
     ...profile,
     stats: {
-      following_count: followingRes.count ?? 0,
-      followers_count: followerRes.count ?? 0,
-      read_count: readRes.count ?? 0,
-      want_to_read_count: wantToReadRes.count ?? 0,
-    }
+      following_count: parsed?.following_count ?? 0,
+      followers_count: parsed?.followers_count ?? 0,
+      read_count: parsed?.read_count ?? 0,
+      want_to_read_count: parsed?.want_to_read_count ?? 0,
+    },
   };
 }
 

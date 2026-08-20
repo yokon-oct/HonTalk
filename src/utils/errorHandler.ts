@@ -17,6 +17,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   AUTH_004: 'パスワードのリセットに失敗しました',
   AUTH_005: 'しばらく時間をおいてから再度お試しください（メール送信の上限に達しました）',
   AUTH_006: 'メールアドレスの確認が必要です。受信トレイをご確認ください',
+  AUTH_007: '端末の時刻がずれている可能性があります。日付と時刻を自動設定にしてから、再度ログインしてください',
   // 書籍
   BOOK_001: '書籍が見つかりませんでした',
   BOOK_002: '書籍の登録に失敗しました',
@@ -54,6 +55,9 @@ function mapSupabaseErrorCode(error: {
 
   if (msg.includes('invalid login credentials')) return 'AUTH_001';
   if (msg.includes('user already registered')) return 'AUTH_002';
+  if (msg.includes('jwt issued at future') || error.code === 'PGRST303') {
+    return msg.includes('issued at future') ? 'AUTH_007' : 'AUTH_003';
+  }
   if (msg.includes('jwt expired') || msg.includes('refresh_token')) return 'AUTH_003';
   if (msg.includes('rate limit') || msg.includes('over_email_send_rate_limit')) return 'AUTH_005';
   if (msg.includes('email not confirmed')) return 'AUTH_006';

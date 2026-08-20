@@ -14,7 +14,6 @@ import {
   View,
   Text,
   Image,
-  TouchableOpacity,
   KeyboardAvoidingView,
   ScrollView,
   Platform,
@@ -140,6 +139,14 @@ export default function LoginScreen() {
               isLoading={isLoading}
               style={styles.submitButton}
             />
+
+            <PrimaryButton
+              title="新規登録"
+              variant="outline"
+              onPress={() => router.push('/(auth)/register')}
+              disabled={isLoading}
+              style={styles.registerSubmitButton}
+            />
           </View>
 
           {/* ソーシャルログイン */}
@@ -154,17 +161,6 @@ export default function LoginScreen() {
               disabled={isLoading}
               onSuccess={() => router.replace('/(tabs)')}
             />
-
-            <TouchableOpacity
-              style={[styles.registerButton, styles.registerButtonSpaced]}
-              onPress={() => router.push('/(auth)/register')}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.registerButtonText}>
-                アカウントをお持ちでない方は
-                <Text style={styles.registerButtonTextBold}> 新規登録</Text>
-              </Text>
-            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -239,6 +235,9 @@ const styles = StyleSheet.create({
   submitButton: {
     marginTop: spacing.sm,
   },
+  registerSubmitButton: {
+    marginTop: spacing.md,
+  },
 
   // フッター
   footer: {
@@ -260,24 +259,5 @@ const styles = StyleSheet.create({
     ...typography.preset.caption,
     color: colors.neutral[400],
     marginHorizontal: spacing.lg,
-  },
-  registerButton: {
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xl,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.neutral[0],
-  },
-  registerButtonSpaced: {
-    marginTop: spacing.xl,
-  },
-  registerButtonText: {
-    ...typography.preset.bodySmall,
-    color: colors.neutral[600],
-  },
-  registerButtonTextBold: {
-    color: colors.primary[500],
-    fontWeight: typography.fontWeight.bold,
   },
 });
