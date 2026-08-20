@@ -144,7 +144,7 @@ export default function SettingsScreen() {
         </View>
       ))}
 
-      <Text style={styles.versionText}>HonTalk Version 1.0.0 (Beta)</Text>
+      <Text style={styles.versionText}>HonTalk Version 1.0.1 (Beta)</Text>
     </ScrollView>
   );
 }
