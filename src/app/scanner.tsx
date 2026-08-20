@@ -4,7 +4,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/theme/colors';
-import { searchBookByIsbn, upsertBook } from '@/services/bookService';
+import { searchBookByIsbn, upsertBook, normalizeIsbn, isValidIsbn, GoogleBooksRateLimitError } from '@/services/bookService';
 
 export default function ScannerScreen() {
   const [permission, requestPermission] = useCameraPermissions();
@@ -29,33 +29,52 @@ export default function ScannerScreen() {
     );
   }
 
-  const handleBarcodeScanned = async ({ type, data }: { type: string; data: string }) => {
-    // 連続でスキャンしないようにガード
+  const resetScan = () => {
+    setScanned(false);
+    setIsSearching(false);
+  };
+
+  const handleBarcodeScanned = async ({ data }: { type: string; data: string }) => {
     if (scanned || isSearching) return;
-    
+
+    const isbn = normalizeIsbn(data);
+    if (!isValidIsbn(isbn)) {
+      Alert.alert(
+        '無効なバーコード',
+        '本のISBNバーコード（10桁または13桁）をスキャンしてください。',
+        [{ text: 'OK' }],
+      );
+      return;
+    }
+
     setScanned(true);
     setIsSearching(true);
 
     try {
-      const bookItem = await searchBookByIsbn(data);
+      const bookItem = await searchBookByIsbn(isbn);
       if (bookItem) {
-        // 見つかったらDBに保存（upsert）して詳細画面へ
         const savedBook = await upsertBook(bookItem);
-        // replace を使うことで、戻るボタンでスキャン画面に戻らず検索画面等に戻れる
         router.replace(`/book/${savedBook.id}`);
       } else {
         Alert.alert(
           '見つかりませんでした',
-          'このバーコードに一致する本が見つかりませんでした。',
-          [{ text: 'もう一度', onPress: () => setScanned(false) }]
+          `ISBN: ${isbn}\n\nGoogle Books・楽天ブックスの両方で該当する本が見つかりませんでした。`,
+          [{ text: 'もう一度', onPress: resetScan }],
         );
       }
     } catch (error) {
       console.error(error);
+      const message =
+        error instanceof GoogleBooksRateLimitError
+          ? '書籍検索APIの利用上限に達しました。しばらく待ってから再度お試しください。\n\n.env に EXPO_PUBLIC_GOOGLE_BOOKS_API_KEY を設定すると改善する場合があります。'
+          : error instanceof Error
+            ? error.message
+            : '検索中にエラーが発生しました。';
+
       Alert.alert(
-        'エラー',
-        '検索中にエラーが発生しました。',
-        [{ text: 'もう一度', onPress: () => setScanned(false) }]
+        error instanceof GoogleBooksRateLimitError ? 'API利用上限' : 'エラー',
+        message,
+        [{ text: 'もう一度', onPress: resetScan }],
       );
     } finally {
       setIsSearching(false);
@@ -66,7 +85,8 @@ export default function ScannerScreen() {
     <View style={styles.container}>
       <Stack.Screen 
         options={{ 
-          title: '本のバーコードをスキャン', 
+          title: '本のバーコードをスキャン',
+          headerShown: true,
           headerBackTitle: '戻る',
           headerTransparent: true,
           headerTintColor: '#fff',
@@ -78,7 +98,7 @@ export default function ScannerScreen() {
         facing="back"
         onBarcodeScanned={scanned ? undefined : handleBarcodeScanned}
         barcodeScannerSettings={{
-          barcodeTypes: ['ean13', 'ean8'],
+          barcodeTypes: ['ean13', 'ean8', 'code128'],
         }}
       >
         <View style={styles.overlay}>

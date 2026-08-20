@@ -194,6 +194,14 @@ export default function RootLayout() {
                 headerBackTitle: '戻る',
               }}
             />
+            <Stack.Screen
+              name="scanner"
+              options={{
+                headerShown: true,
+                headerTitle: 'バーコードスキャン',
+                headerBackTitle: '戻る',
+              }}
+            />
           </Stack>
         </AuthGuard>
       </GestureHandlerRootView>
