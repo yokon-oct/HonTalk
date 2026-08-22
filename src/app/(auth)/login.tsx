@@ -104,8 +104,9 @@ export default function LoginScreen() {
               icon="mail-outline"
               placeholder="example@email.com"
               keyboardType="default"
-              autoComplete="username"
-              textContentType="emailAddress"
+              inputMode="text"
+              autoComplete={Platform.OS === 'android' ? 'email' : 'off'}
+              textContentType="none"
               returnKeyType="next"
             />
 
@@ -117,9 +118,9 @@ export default function LoginScreen() {
               placeholder="8文字以上"
               isPassword
               keyboardType="default"
-              autoComplete="current-password"
-              textContentType="password"
-              passwordRules="minlength: 8;"
+              inputMode="text"
+              autoComplete={Platform.OS === 'android' ? 'current-password' : 'off'}
+              textContentType="none"
               returnKeyType="done"
             />
 

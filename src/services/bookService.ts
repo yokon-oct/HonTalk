@@ -8,6 +8,7 @@
 
 import { supabase } from './supabase';
 import type { Database } from '@/types/database.types';
+import { htmlToPlainText } from '@/utils/htmlToPlainText';
 
 type BookRow = Database['public']['Tables']['books']['Row'];
 type BookInsert = Database['public']['Tables']['books']['Insert'];
@@ -331,7 +332,7 @@ export function googleBookToInsert(item: GoogleBookItem): BookInsert {
     genre: info.categories?.[0] ?? null,
     page_count: info.pageCount ?? null,
     published_date: normalizePublishedDate(info.publishedDate),
-    description: info.description ?? null,
+    description: info.description ? htmlToPlainText(info.description) : null,
     google_books_id: isRakuten ? null : item.id.startsWith('dummy-') ? null : item.id,
     rakuten_books_id: rakutenIsbn,
   };
