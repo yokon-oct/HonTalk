@@ -31,6 +31,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   SYS_001: 'サーバーでエラーが発生しました。しばらく経ってから再度お試しください',
   SYS_002: 'ネットワーク接続を確認してください',
   SYS_003: '予期しないエラーが発生しました',
+  SYS_004: 'アプリの接続設定が正しくありません。最新ビルドを再インストールしてください',
 };
 
 /** Supabase エラーかどうかの型ガード */
@@ -68,10 +69,24 @@ function mapSupabaseErrorCode(error: {
   return 'SYS_003';
 }
 
+/** 接続設定不足など、ユーザー向けに特定メッセージを返すエラー */
+export class ConfigError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ConfigError';
+  }
+}
+
 /**
  * エラーをアプリ内エラー形式に変換する
  */
 export function handleError(error: unknown): AppError {
+  if (error instanceof ConfigError) {
+    return {
+      code: 'SYS_004',
+      message: error.message || ERROR_MESSAGES.SYS_004,
+    };
+  }
   // Supabase エラー
   if (isSupabaseError(error)) {
     const code = mapSupabaseErrorCode(error);

@@ -13,7 +13,8 @@ import { followKeys } from '@/hooks/useFollow';
 import { profileKeys } from '@/hooks/useProfile';
 import { useAuthStore } from '@/stores/authStore';
 import { useUIStore } from '@/stores/uiStore';
-import { handleError } from '@/utils/errorHandler';
+import { getSupabaseConfigIssue } from '@/config/env';
+import { ConfigError, handleError } from '@/utils/errorHandler';
 import { unregisterCurrentPushToken, setCurrentPushToken } from '@/services/pushTokenService';
 import {
   signInWithGoogleOAuth,
@@ -91,6 +92,11 @@ export function useAuth() {
   const signInWithGoogle = useCallback(async () => {
     setLoading(true);
     try {
+      const configIssue = getSupabaseConfigIssue();
+      if (configIssue) {
+        throw new ConfigError(configIssue);
+      }
+
       const result = await signInWithGoogleOAuth();
       if (result.cancelled) {
         return { success: false, cancelled: true };
@@ -120,6 +126,11 @@ export function useAuth() {
   const signInWithApple = useCallback(async () => {
     setLoading(true);
     try {
+      const configIssue = getSupabaseConfigIssue();
+      if (configIssue) {
+        throw new ConfigError(configIssue);
+      }
+
       const result = await signInWithAppleNative();
       if (result.cancelled) {
         return { success: false, cancelled: true };
@@ -141,6 +152,11 @@ export function useAuth() {
     async (email: string, password: string) => {
       setLoading(true);
       try {
+        const configIssue = getSupabaseConfigIssue();
+        if (configIssue) {
+          throw new ConfigError(configIssue);
+        }
+
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,

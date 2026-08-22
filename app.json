@@ -9,6 +9,7 @@
     "userInterfaceStyle": "light",
     "ios": {
       "bundleIdentifier": "com.hontalk.app",
+      "icon": "./assets/images/icon.png",
       "supportsTablet": true,
       "usesAppleSignIn": true,
       "infoPlist": {
