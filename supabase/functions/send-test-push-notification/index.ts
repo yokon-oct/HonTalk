@@ -87,6 +87,8 @@ Deno.serve(async (req: Request) => {
         reference_id: null,
         actor_id: null,
       },
+      priority: 'high',
+      channelId: 'alerts',
     }));
 
     const response = await fetch(EXPO_PUSH_ENDPOINT, {

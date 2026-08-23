@@ -142,6 +142,8 @@ Deno.serve(async (req: Request) => {
       title,
       body: messageBody,
       data,
+      priority: 'high',
+      channelId: 'alerts',
     }));
 
     const invalidTokens: string[] = [];

@@ -9,6 +9,7 @@ import { BookCover } from '@/components/book/BookCover';
 import { useReviewsByBook } from '@/hooks/useReviews';
 import { ReviewCard } from '@/components/review/ReviewCard';
 import { AddToShelfModal } from '@/components/shelf/AddToShelfModal';
+import { htmlToPlainText } from '@/utils/htmlToPlainText';
 
 export default function BookDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -57,6 +58,7 @@ export default function BookDetailsScreen() {
   const author = volumeInfo.authors?.join(', ') || '著者不明';
   const publishedDate = volumeInfo.publishedDate ? volumeInfo.publishedDate.substring(0, 4) : '';
   const currentStatus = readingRecord?.status;
+  const description = htmlToPlainText(volumeInfo.description);
 
   const handleStatusChange = async (status: 'want_to_read' | 'reading' | 'finished') => {
     try {
@@ -148,7 +150,7 @@ export default function BookDetailsScreen() {
       <View style={styles.descriptionSection}>
         <Text style={styles.sectionTitle}>作品紹介</Text>
         <Text style={styles.descriptionText}>
-          {volumeInfo.description || '作品紹介はありません。'}
+          {description || '作品紹介はありません。'}
         </Text>
       </View>
 

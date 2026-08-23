@@ -24,6 +24,8 @@ const message = {
   title: 'HonTalk',
   body: 'CLI からのテスト通知です。',
   data: { type: 'system' },
+  priority: 'high',
+  channelId: 'alerts',
 };
 
 const response = await fetch(EXPO_PUSH_ENDPOINT, {

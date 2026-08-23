@@ -13,6 +13,9 @@ import { Platform } from 'react-native';
 
 import { supabase } from './supabase';
 
+/** Android 通知チャンネル ID（app.json の defaultChannel と一致させる） */
+export const ANDROID_NOTIFICATION_CHANNEL_ID = 'alerts';
+
 // フォアグラウンド時にも通知バナー・サウンド・バッジを表示する
 // （ルートレイアウトの初回レンダリング前に登録される必要があるため、モジュール読み込み時に実行）
 Notifications.setNotificationHandler({
@@ -26,14 +29,15 @@ Notifications.setNotificationHandler({
 
 /**
  * Android 用の通知チャンネルを作成する
- * (app.json の expo-notifications プラグイン設定と同じ 'default' チャンネル)
+ * HIGH importance でヘッドアップ（画面上部ポップアップ）を有効にする。
+ * チャンネル作成後は importance を変更できないため、過去に 'default' を使っていた端末向けに ID を分けている。
  */
 export async function configureAndroidChannelAsync(): Promise<void> {
   if (Platform.OS !== 'android') return;
 
-  await Notifications.setNotificationChannelAsync('default', {
-    name: 'デフォルト通知',
-    importance: Notifications.AndroidImportance.DEFAULT,
+  await Notifications.setNotificationChannelAsync(ANDROID_NOTIFICATION_CHANNEL_ID, {
+    name: '通知',
+    importance: Notifications.AndroidImportance.HIGH,
     vibrationPattern: [0, 250, 250, 250],
     lightColor: '#F5E6D3',
   });
@@ -78,7 +82,13 @@ export async function registerForPushNotificationsAsync(): Promise<RegisterPushR
   let finalStatus = existingStatus;
 
   if (existingStatus !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync();
+    const { status } = await Notifications.requestPermissionsAsync({
+      ios: {
+        allowAlert: true,
+        allowBadge: true,
+        allowSound: true,
+      },
+    });
     finalStatus = status;
   }
 

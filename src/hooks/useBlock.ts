@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as blockService from '@/services/blockService';
 import { useAuthStore } from '@/stores/authStore';
+import { timelineKeys } from './useTimeline';
 
 export const blockKeys = {
   all: ['blocks'] as const,
@@ -78,6 +79,8 @@ export function useToggleBlock() {
       queryClient.invalidateQueries({
         queryKey: blockKeys.blockedUsers(currentUserId),
       });
+      queryClient.invalidateQueries({ queryKey: timelineKeys.all });
+      queryClient.invalidateQueries({ queryKey: timelineKeys.recent });
     },
   });
 }
@@ -103,6 +106,8 @@ export function useUnblock() {
       queryClient.invalidateQueries({
         queryKey: blockKeys.blockedUsers(currentUserId),
       });
+      queryClient.invalidateQueries({ queryKey: timelineKeys.all });
+      queryClient.invalidateQueries({ queryKey: timelineKeys.recent });
     },
   });
 }

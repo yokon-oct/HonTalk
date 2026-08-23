@@ -7,10 +7,20 @@
 
 import { useCallback } from 'react';
 import { supabase } from '@/services/supabase';
+import { queryClient } from '@/config/queryClient';
+import { timelineKeys } from '@/hooks/useTimeline';
+import { followKeys } from '@/hooks/useFollow';
+import { profileKeys } from '@/hooks/useProfile';
 import { useAuthStore } from '@/stores/authStore';
 import { useUIStore } from '@/stores/uiStore';
-import { handleError } from '@/utils/errorHandler';
+import { getSupabaseConfigIssue } from '@/config/env';
+import { ConfigError, handleError } from '@/utils/errorHandler';
 import { unregisterCurrentPushToken, setCurrentPushToken } from '@/services/pushTokenService';
+import {
+  signInWithGoogleOAuth,
+  signInWithAppleNative,
+} from '@/services/oauthService';
+import type { Session } from '@supabase/supabase-js';
 import type { Profile } from '@/stores/authStore';
 
 export function useAuth() {
@@ -57,12 +67,96 @@ export function useAuth() {
   );
 
   /**
+   * セッション確立後の共通処理
+   */
+  const completeSignIn = useCallback(
+    async (session: Session | null) => {
+      if (!session?.user) return { success: false as const };
+
+      setSession(session);
+      await fetchProfile(session.user.id);
+
+      // ログイン後はユーザー依存のキャッシュを破棄して再取得する
+      queryClient.invalidateQueries({ queryKey: timelineKeys.all });
+      queryClient.invalidateQueries({ queryKey: followKeys.all });
+      queryClient.invalidateQueries({ queryKey: profileKeys.all });
+
+      return { success: true as const };
+    },
+    [setSession, fetchProfile],
+  );
+
+  /**
+   * Google OAuth でログイン / 新規登録
+   */
+  const signInWithGoogle = useCallback(async () => {
+    setLoading(true);
+    try {
+      const configIssue = getSupabaseConfigIssue();
+      if (configIssue) {
+        throw new ConfigError(configIssue);
+      }
+
+      const result = await signInWithGoogleOAuth();
+      if (result.cancelled) {
+        return { success: false, cancelled: true };
+      }
+      return await completeSignIn(result.session);
+    } catch (error) {
+      // コールバック待ちが失敗しても、別経路でセッションが確立されている場合がある
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (session?.user) {
+        return await completeSignIn(session);
+      }
+
+      console.error('[Auth] Google sign-in failed:', error);
+      const appError = handleError(error);
+      showToast({ message: appError.message, type: 'error' });
+      return { success: false, error: appError };
+    } finally {
+      setLoading(false);
+    }
+  }, [setLoading, completeSignIn, showToast]);
+
+  /**
+   * Apple Sign In でログイン / 新規登録（iOS）
+   */
+  const signInWithApple = useCallback(async () => {
+    setLoading(true);
+    try {
+      const configIssue = getSupabaseConfigIssue();
+      if (configIssue) {
+        throw new ConfigError(configIssue);
+      }
+
+      const result = await signInWithAppleNative();
+      if (result.cancelled) {
+        return { success: false, cancelled: true };
+      }
+      return await completeSignIn(result.session);
+    } catch (error) {
+      const appError = handleError(error);
+      showToast({ message: appError.message, type: 'error' });
+      return { success: false, error: appError };
+    } finally {
+      setLoading(false);
+    }
+  }, [setLoading, completeSignIn, showToast]);
+
+  /**
    * メール + パスワードでログイン
    */
   const signInWithEmail = useCallback(
     async (email: string, password: string) => {
       setLoading(true);
       try {
+        const configIssue = getSupabaseConfigIssue();
+        if (configIssue) {
+          throw new ConfigError(configIssue);
+        }
+
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
@@ -73,6 +167,9 @@ export function useAuth() {
         setSession(data.session);
         if (data.session?.user) {
           await fetchProfile(data.session.user.id);
+          queryClient.invalidateQueries({ queryKey: timelineKeys.all });
+          queryClient.invalidateQueries({ queryKey: followKeys.all });
+          queryClient.invalidateQueries({ queryKey: profileKeys.all });
         }
 
         return { success: true };
@@ -110,6 +207,9 @@ export function useAuth() {
         setSession(data.session);
         if (data.session) {
           await fetchProfile(data.user.id);
+          queryClient.invalidateQueries({ queryKey: timelineKeys.all });
+          queryClient.invalidateQueries({ queryKey: followKeys.all });
+          queryClient.invalidateQueries({ queryKey: profileKeys.all });
         }
 
         showToast({ message: 'アカウントを作成しました', type: 'success' });
@@ -135,6 +235,7 @@ export function useAuth() {
       await unregisterCurrentPushToken();
       await supabase.auth.signOut();
       reset();
+      queryClient.clear();
       showToast({ message: 'ログアウトしました', type: 'info' });
     } catch (error) {
       const appError = handleError(error);
@@ -190,6 +291,7 @@ export function useAuth() {
       // 認証セッションも削除
       await supabase.auth.signOut();
       reset();
+      queryClient.clear();
 
       showToast({ message: 'アカウントを削除しました', type: 'info' });
       return { success: true };
@@ -235,6 +337,8 @@ export function useAuth() {
 
     // アクション
     signInWithEmail,
+    signInWithGoogle,
+    signInWithApple,
     signUpWithEmail,
     signOut,
     updateEmail,

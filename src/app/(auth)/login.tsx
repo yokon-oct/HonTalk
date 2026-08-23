@@ -14,7 +14,6 @@ import {
   View,
   Text,
   Image,
-  TouchableOpacity,
   KeyboardAvoidingView,
   ScrollView,
   Platform,
@@ -34,6 +33,7 @@ import {
 } from '@/services/credentialStorage';
 import { FormInput } from '@/components/ui/FormInput';
 import { PrimaryButton } from '@/components/ui/PrimaryButton';
+import { SocialAuthButtons } from '@/components/auth/SocialAuthButtons';
 import { colors } from '@/theme/colors';
 import { typography } from '@/theme/typography';
 import { spacing, borderRadius } from '@/theme/spacing';
@@ -86,7 +86,7 @@ export default function LoginScreen() {
           {/* ヘッダー */}
           <View style={styles.header}>
             <Image
-              source={require('../../../assets/images/hontalk-logo-rounded.png')}
+              source={require('../../../assets/images/hontalk-logo.png')}
               style={styles.logoImage}
               resizeMode="contain"
               accessibilityLabel="HonTalk ロゴ"
@@ -104,8 +104,9 @@ export default function LoginScreen() {
               icon="mail-outline"
               placeholder="example@email.com"
               keyboardType="default"
-              autoComplete="username"
-              textContentType="emailAddress"
+              inputMode="text"
+              autoComplete={Platform.OS === 'android' ? 'email' : 'off'}
+              textContentType="none"
               returnKeyType="next"
             />
 
@@ -117,9 +118,9 @@ export default function LoginScreen() {
               placeholder="8文字以上"
               isPassword
               keyboardType="default"
-              autoComplete="current-password"
-              textContentType="password"
-              passwordRules="minlength: 8;"
+              inputMode="text"
+              autoComplete={Platform.OS === 'android' ? 'current-password' : 'off'}
+              textContentType="none"
               returnKeyType="done"
             />
 
@@ -139,9 +140,17 @@ export default function LoginScreen() {
               isLoading={isLoading}
               style={styles.submitButton}
             />
+
+            <PrimaryButton
+              title="新規登録"
+              variant="outline"
+              onPress={() => router.push('/(auth)/register')}
+              disabled={isLoading}
+              style={styles.registerSubmitButton}
+            />
           </View>
 
-          {/* フッター */}
+          {/* ソーシャルログイン */}
           <View style={styles.footer}>
             <View style={styles.dividerRow}>
               <View style={styles.dividerLine} />
@@ -149,16 +158,10 @@ export default function LoginScreen() {
               <View style={styles.dividerLine} />
             </View>
 
-            <TouchableOpacity
-              style={styles.registerButton}
-              onPress={() => router.push('/(auth)/register')}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.registerButtonText}>
-                アカウントをお持ちでない方は
-                <Text style={styles.registerButtonTextBold}> 新規登録</Text>
-              </Text>
-            </TouchableOpacity>
+            <SocialAuthButtons
+              disabled={isLoading}
+              onSuccess={() => router.replace('/(tabs)')}
+            />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -233,6 +236,9 @@ const styles = StyleSheet.create({
   submitButton: {
     marginTop: spacing.sm,
   },
+  registerSubmitButton: {
+    marginTop: spacing.md,
+  },
 
   // フッター
   footer: {
@@ -254,21 +260,5 @@ const styles = StyleSheet.create({
     ...typography.preset.caption,
     color: colors.neutral[400],
     marginHorizontal: spacing.lg,
-  },
-  registerButton: {
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xl,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.neutral[200],
-    backgroundColor: colors.neutral[0],
-  },
-  registerButtonText: {
-    ...typography.preset.bodySmall,
-    color: colors.neutral[600],
-  },
-  registerButtonTextBold: {
-    color: colors.primary[500],
-    fontWeight: typography.fontWeight.bold,
   },
 });

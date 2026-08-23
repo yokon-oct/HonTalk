@@ -96,6 +96,7 @@ export default function SettingsScreen() {
       items: [
         { icon: 'notifications-outline', label: '通知設定', onPress: () => router.push('/settings/notifications') },
         { icon: 'lock-closed-outline', label: 'プライバシー設定', onPress: () => router.push('/settings/privacy') },
+        { icon: 'volume-mute-outline', label: 'ミュートしたユーザー', onPress: () => router.push('/settings/muted-users') },
         { icon: 'ban-outline', label: 'ブロックしたユーザー', onPress: () => router.push('/settings/blocked-users') },
       ],
     },
@@ -154,7 +155,7 @@ export default function SettingsScreen() {
         </View>
       ))}
 
-      <Text style={styles.versionText}>HonTalk Version 1.0.0 (Beta)</Text>
+      <Text style={styles.versionText}>HonTalk Version 1.0.1 (Beta)</Text>
     </ScrollView>
   );
 }
