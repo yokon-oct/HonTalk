@@ -8,6 +8,8 @@ import { colors } from '@/theme/colors';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuthStore } from '@/stores/authStore';
+import { LEGAL_URLS, SUPPORT_EMAIL } from '@/constants/legal';
+import { openExternalUrl } from '@/utils/openExternalUrl';
 
 interface MenuItem {
   icon: keyof typeof Ionicons.glyphMap;
@@ -95,6 +97,15 @@ export default function SettingsScreen() {
         { icon: 'notifications-outline', label: '通知設定', onPress: () => router.push('/settings/notifications') },
         { icon: 'lock-closed-outline', label: 'プライバシー設定', onPress: () => router.push('/settings/privacy') },
         { icon: 'ban-outline', label: 'ブロックしたユーザー', onPress: () => router.push('/settings/blocked-users') },
+      ],
+    },
+    {
+      title: 'サポートと法的情報',
+      items: [
+        { icon: 'document-text-outline', label: '利用規約', onPress: () => openExternalUrl(LEGAL_URLS.termsOfService) },
+        { icon: 'shield-checkmark-outline', label: 'プライバシーポリシー', onPress: () => openExternalUrl(LEGAL_URLS.privacyPolicy) },
+        { icon: 'help-circle-outline', label: 'お問い合わせ', onPress: () => openExternalUrl(LEGAL_URLS.support) },
+        { icon: 'mail-outline', label: SUPPORT_EMAIL, onPress: () => openExternalUrl(`mailto:${SUPPORT_EMAIL}`) },
       ],
     },
     {

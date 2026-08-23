@@ -1,0 +1,122 @@
+:root {
+  --bg: #faf8f5;
+  --surface: #ffffff;
+  --text: #1a1a1a;
+  --muted: #6b7280;
+  --primary: #e55b2c;
+  --border: #e5e7eb;
+  --max-width: 720px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN',
+    'Noto Sans JP', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.75;
+}
+
+header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 20px 24px;
+}
+
+header a {
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 1.125rem;
+}
+
+main {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 32px 24px 64px;
+}
+
+h1 {
+  font-size: 1.75rem;
+  margin: 0 0 8px;
+}
+
+.updated {
+  color: var(--muted);
+  font-size: 0.875rem;
+  margin-bottom: 32px;
+}
+
+h2 {
+  font-size: 1.125rem;
+  margin: 32px 0 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+p,
+li {
+  font-size: 0.95rem;
+}
+
+ul,
+ol {
+  padding-left: 1.25rem;
+}
+
+a {
+  color: var(--primary);
+}
+
+footer {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0 24px 48px;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+footer nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.card-grid {
+  display: grid;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.card {
+  display: block;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.card strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text);
+}
+
+.card span {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.contact-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  margin-top: 16px;
+}

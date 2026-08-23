@@ -32,6 +32,8 @@ import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { colors } from '@/theme/colors';
 import { typography } from '@/theme/typography';
 import { spacing, borderRadius } from '@/theme/spacing';
+import { LEGAL_URLS } from '@/constants/legal';
+import { openExternalUrl } from '@/utils/openExternalUrl';
 
 /** パスワード強度を 0–4 のスコアで計算 */
 function getPasswordStrength(password: string): number {
@@ -208,9 +210,19 @@ export default function RegisterScreen() {
             {/* 利用規約 */}
             <Text style={styles.termsText}>
               アカウントを作成すると、
-              <Text style={styles.termsLink}>利用規約</Text>
+              <Text
+                style={styles.termsLink}
+                onPress={() => openExternalUrl(LEGAL_URLS.termsOfService)}
+              >
+                利用規約
+              </Text>
               および
-              <Text style={styles.termsLink}>プライバシーポリシー</Text>
+              <Text
+                style={styles.termsLink}
+                onPress={() => openExternalUrl(LEGAL_URLS.privacyPolicy)}
+              >
+                プライバシーポリシー
+              </Text>
               に同意したことになります。
             </Text>
           </View>
