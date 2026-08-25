@@ -5,8 +5,11 @@
  * - 読書統計の取得
  */
 
+import * as ImageManipulator from 'expo-image-manipulator';
 import { supabase } from './supabase';
 import type { Database } from '@/types/database.types';
+
+const AVATAR_SIZE = 400;
 
 type ProfileRow = Database['public']['Tables']['profiles']['Row'];
 type ProfileUpdate = Database['public']['Tables']['profiles']['Update'];
@@ -137,7 +140,32 @@ export async function searchProfiles(
 // ==========================================
 
 /**
+ * 正方形にトリミングして JPEG に変換する。
+ * iOS の HEIC など、ブラウザで表示できない形式もここで吸収する。
+ */
+async function prepareAvatarImage(uri: string): Promise<string> {
+  const source = await ImageManipulator.manipulateAsync(uri, [], { compress: 1 });
+  const size = Math.min(source.width, source.height);
+  const originX = Math.floor((source.width - size) / 2);
+  const originY = Math.floor((source.height - size) / 2);
+
+  const result = await ImageManipulator.manipulateAsync(
+    source.uri,
+    [
+      { crop: { originX, originY, width: size, height: size } },
+      { resize: { width: AVATAR_SIZE, height: AVATAR_SIZE } },
+    ],
+    { compress: 0.8, format: ImageManipulator.SaveFormat.JPEG },
+  );
+
+  return result.uri;
+}
+
+/**
  * アバター画像をアップロードする
+ *
+ * React Native では Blob / FormData による Storage アップロードが失敗するため、
+ * ArrayBuffer で送信する。
  */
 export async function uploadAvatar(
   userId: string,
@@ -147,29 +175,37 @@ export async function uploadAvatar(
     name?: string;
   },
 ): Promise<string> {
-  const fileExt = file.name?.split('.').pop() ?? 'jpg';
-  const fileName = `${userId}/avatar.${fileExt}`;
+  const preparedUri = await prepareAvatarImage(file.uri);
+  const fileName = `${userId}/avatar.jpg`;
 
-  // fetch でファイルを取得して Blob に変換
-  const response = await fetch(file.uri);
-  const blob = await response.blob();
+  const response = await fetch(preparedUri);
+  if (!response.ok) {
+    throw new Error('画像の読み込みに失敗しました');
+  }
+
+  const arrayBuffer = await response.arrayBuffer();
+  if (arrayBuffer.byteLength === 0) {
+    throw new Error('画像データの読み込みに失敗しました');
+  }
 
   const { error: uploadError } = await supabase.storage
     .from('avatars')
-    .upload(fileName, blob, {
-      contentType: file.type ?? 'image/jpeg',
+    .upload(fileName, arrayBuffer, {
+      contentType: 'image/jpeg',
       upsert: true,
+      cacheControl: '3600',
     });
 
   if (uploadError) throw uploadError;
 
-  // 公開 URL を取得
   const { data: urlData } = supabase.storage
     .from('avatars')
     .getPublicUrl(fileName);
 
-  // プロフィールを更新
-  await updateProfile(userId, { avatar_url: urlData.publicUrl });
+  // 同一パスの上書きでも Image キャッシュを更新できるようクエリを付ける
+  const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
 
-  return urlData.publicUrl;
+  await updateProfile(userId, { avatar_url: publicUrl });
+
+  return publicUrl;
 }

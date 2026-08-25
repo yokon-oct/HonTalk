@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, ScrollView, Alert, KeyboardAvoidingView, Platform, TouchableOpacity, Image } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, Alert, KeyboardAvoidingView, Platform, TouchableOpacity, Image, ActivityIndicator, Linking } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -21,6 +21,7 @@ export default function ProfileEditScreen() {
   const { mutateAsync: uploadAvatar, isPending: uploadPending } = useUploadAvatar();
 
   const isPending = updatePending || uploadPending;
+  const [localAvatarUri, setLocalAvatarUri] = useState<string | null>(null);
 
   const { control, handleSubmit } = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
@@ -52,25 +53,51 @@ export default function ProfileEditScreen() {
   };
 
   const handlePickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.5,
-    });
-
-    if (!result.canceled && result.assets && result.assets.length > 0) {
-      try {
-        const asset = result.assets[0];
-        await uploadAvatar({
-          uri: asset.uri,
-          type: asset.mimeType,
-          name: asset.fileName || 'avatar.jpg',
-        });
-        Alert.alert('完了', 'プロフィール画像を更新しました');
-      } catch (error: any) {
-        Alert.alert('エラー', error.message || '画像のアップロードに失敗しました');
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert(
+          '写真へのアクセスが必要です',
+          'プロフィール画像を変更するには、写真ライブラリへのアクセスを許可してください。',
+          Platform.OS === 'web'
+            ? [{ text: 'OK' }]
+            : [
+                { text: 'キャンセル', style: 'cancel' },
+                { text: '設定を開く', onPress: () => Linking.openSettings() },
+              ],
+        );
+        return;
       }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (result.canceled || !result.assets?.length) return;
+
+      const asset = result.assets[0];
+      setLocalAvatarUri(asset.uri);
+      await uploadAvatar({
+        uri: asset.uri,
+        type: asset.mimeType ?? 'image/jpeg',
+        name: asset.fileName || 'avatar.jpg',
+      });
+      Alert.alert('完了', 'プロフィール画像を更新しました');
+    } catch (error: unknown) {
+      setLocalAvatarUri(null);
+      const message =
+        error instanceof Error
+          ? error.message
+          : typeof error === 'object' &&
+              error !== null &&
+              'message' in error &&
+              typeof (error as { message: unknown }).message === 'string'
+            ? (error as { message: string }).message
+            : '画像のアップロードに失敗しました';
+      Alert.alert('エラー', message);
     }
   };
 
@@ -102,16 +129,25 @@ export default function ProfileEditScreen() {
             onPress={handlePickImage}
             disabled={uploadPending}
           >
-            {profile?.avatar_url ? (
-              <Image source={{ uri: profile.avatar_url }} style={styles.avatarImage} />
+            {localAvatarUri || profile?.avatar_url ? (
+              <Image
+                source={{ uri: localAvatarUri || profile?.avatar_url || undefined }}
+                style={styles.avatarImage}
+              />
             ) : (
               <View style={styles.avatarPlaceholder}>
                 <Ionicons name="person" size={40} color={colors.neutral[400]} />
               </View>
             )}
-            <View style={styles.avatarEditIcon}>
-              <Ionicons name="camera" size={16} color="#fff" />
-            </View>
+            {uploadPending ? (
+              <View style={styles.avatarUploading}>
+                <ActivityIndicator color="#fff" />
+              </View>
+            ) : (
+              <View style={styles.avatarEditIcon}>
+                <Ionicons name="camera" size={16} color="#fff" />
+              </View>
+            )}
           </TouchableOpacity>
           <Text style={styles.avatarHint}>タップして画像を変更</Text>
         </View>
@@ -233,6 +269,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 3,
     borderColor: colors.neutral[50],
+  },
+  avatarUploading: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    borderRadius: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   avatarHint: {
     ...typography.preset.caption,

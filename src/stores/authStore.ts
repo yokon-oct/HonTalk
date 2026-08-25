@@ -15,6 +15,27 @@ export interface Profile {
   isPremium: boolean;
 }
 
+/** DB の snake_case 行をストア用の Profile に変換する */
+export function profileFromRow(row: {
+  id: string;
+  nickname: string;
+  avatar_url: string | null;
+  bio: string | null;
+  favorite_genres?: string[] | null;
+  privacy_setting: Profile['privacySetting'];
+  is_premium: boolean;
+}): Profile {
+  return {
+    id: row.id,
+    nickname: row.nickname,
+    avatarUrl: row.avatar_url,
+    bio: row.bio ?? '',
+    favoriteGenres: row.favorite_genres ?? [],
+    privacySetting: row.privacy_setting,
+    isPremium: row.is_premium,
+  };
+}
+
 interface AuthState {
   /** Supabase セッション */
   session: Session | null;

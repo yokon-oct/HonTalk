@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as profileService from '@/services/profileService';
-import { useAuthStore } from '@/stores/authStore';
+import { profileFromRow, useAuthStore } from '@/stores/authStore';
 import type { Database } from '@/types/database.types';
 
 type ProfileUpdate = Database['public']['Tables']['profiles']['Update'];
@@ -73,8 +73,7 @@ export function useUpdateProfile() {
       if (currentUserId) {
         queryClient.invalidateQueries({ queryKey: profileKeys.detail(currentUserId) });
         queryClient.invalidateQueries({ queryKey: profileKeys.stats(currentUserId) });
-        // Zustandのストアも更新（必要なフィールドのみマッピング）
-        setProfile(data as any); 
+        setProfile(profileFromRow(data));
       }
     },
   });
@@ -84,7 +83,6 @@ export function useUploadAvatar() {
   const queryClient = useQueryClient();
   const currentUserId = useAuthStore((state) => state.user?.id);
   const setProfile = useAuthStore((state) => state.setProfile);
-  const profile = useAuthStore((state) => state.profile);
 
   return useMutation({
     mutationFn: (file: { uri: string; type?: string; name?: string }) => {
@@ -92,10 +90,10 @@ export function useUploadAvatar() {
       return profileService.uploadAvatar(currentUserId, file);
     },
     onSuccess: (url) => {
-      if (currentUserId && profile) {
-        queryClient.invalidateQueries({ queryKey: profileKeys.detail(currentUserId) });
-        queryClient.invalidateQueries({ queryKey: profileKeys.stats(currentUserId) });
-        setProfile({ ...profile, avatarUrl: url });
+      queryClient.invalidateQueries({ queryKey: profileKeys.all });
+      const current = useAuthStore.getState().profile;
+      if (current) {
+        setProfile({ ...current, avatarUrl: url });
       }
     },
   });

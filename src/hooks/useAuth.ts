@@ -11,7 +11,7 @@ import { queryClient } from '@/config/queryClient';
 import { timelineKeys } from '@/hooks/useTimeline';
 import { followKeys } from '@/hooks/useFollow';
 import { profileKeys } from '@/hooks/useProfile';
-import { useAuthStore } from '@/stores/authStore';
+import { profileFromRow, useAuthStore, type Profile } from '@/stores/authStore';
 import { useUIStore } from '@/stores/uiStore';
 import { getSupabaseConfigIssue } from '@/config/env';
 import { ConfigError, handleError } from '@/utils/errorHandler';
@@ -21,7 +21,6 @@ import {
   signInWithAppleNative,
 } from '@/services/oauthService';
 import type { Session } from '@supabase/supabase-js';
-import type { Profile } from '@/stores/authStore';
 
 export function useAuth() {
   const {
@@ -50,16 +49,7 @@ export function useAuth() {
 
       if (error || !data) return null;
 
-      const profile: Profile = {
-        id: (data as any).id,
-        nickname: (data as any).nickname,
-        avatarUrl: (data as any).avatar_url,
-        bio: (data as any).bio,
-        favoriteGenres: (data as any).favorite_genres,
-        privacySetting: (data as any).privacy_setting,
-        isPremium: (data as any).is_premium,
-      };
-
+      const profile = profileFromRow(data);
       setProfile(profile);
       return profile;
     },
