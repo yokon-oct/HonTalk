@@ -18,7 +18,7 @@ OUT_PATH = os.path.join(IMG_DIR, "icon.png")
 SIZE = 1024
 # ロゴの表示サイズ比率（小さいほど余白が増える）
 CONTENT_SCALE = 0.86
-BG_COLOR = (250, 248, 245, 255)  # #FAF8F5
+BG_COLOR = (212, 96, 58, 255)  # #D4603A テラコッタ（colors.primary.500）
 
 
 def generate_icon(src_path: str, out_path: str) -> None:

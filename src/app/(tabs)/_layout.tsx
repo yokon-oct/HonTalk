@@ -24,9 +24,9 @@ function HeaderLogo() {
   return (
     <View style={styles.logoContainer}>
       <Image
-        source={require('../../../assets/images/hontalk-logo.png')}
+        source={require('../../../assets/images/hontalk-mark.png')}
         style={styles.logoImage}
-        resizeMode="contain"
+        resizeMode="cover"
       />
     </View>
   );
@@ -330,6 +330,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 8,
+    overflow: 'hidden',
   },
 
   // ハンバーガーボタン

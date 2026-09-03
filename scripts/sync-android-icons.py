@@ -13,25 +13,25 @@ IMG_DIR = os.path.join(BASE_DIR, "assets", "images")
 SRC_PATH = os.path.join(IMG_DIR, "icon.png")
 
 FOREGROUND_SIZE = 512
-BG_THRESHOLD = 225
 
 
 def is_background(r: int, g: int, b: int, a: int) -> bool:
     if a < 16:
         return True
-    return r >= BG_THRESHOLD and g >= BG_THRESHOLD - 3 and b >= BG_THRESHOLD - 8
+    # テラコッタ / 旧オレンジ背景。白いロゴ本体は残す。
+    return r > 180 and 50 < g < 170 and b < 100
 
 
 def sync_foreground(src: Image.Image) -> None:
     out_path = os.path.join(IMG_DIR, "android-icon-foreground.png")
-    src.resize((FOREGROUND_SIZE, FOREGROUND_SIZE), Image.LANCZOS).save(out_path, "PNG")
+    src.resize((FOREGROUND_SIZE, FOREGROUND_SIZE), Image.BOX).save(out_path, "PNG")
     print(f"保存: {out_path}")
 
 
 def sync_monochrome(src: Image.Image) -> None:
     out_path = os.path.join(IMG_DIR, "android-icon-monochrome.png")
     size = FOREGROUND_SIZE
-    img = src.convert("RGBA").resize((size, size), Image.LANCZOS)
+    img = src.convert("RGBA").resize((size, size), Image.BOX)
     pixels = img.load()
 
     mono = Image.new("RGBA", (size, size), (0, 0, 0, 0))
@@ -48,13 +48,13 @@ def sync_monochrome(src: Image.Image) -> None:
 
 def sync_splash_icon(src: Image.Image) -> None:
     out_path = os.path.join(IMG_DIR, "splash-icon.png")
-    src.resize((512, 512), Image.LANCZOS).save(out_path, "PNG")
+    src.resize((512, 512), Image.BOX).save(out_path, "PNG")
     print(f"保存: {out_path}")
 
 
 def sync_favicon(src: Image.Image) -> None:
     out_path = os.path.join(IMG_DIR, "favicon.png")
-    src.resize((48, 48), Image.LANCZOS).save(out_path, "PNG")
+    src.resize((48, 48), Image.BOX).save(out_path, "PNG")
     print(f"保存: {out_path}")
 
 

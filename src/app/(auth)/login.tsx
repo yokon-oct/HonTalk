@@ -86,9 +86,9 @@ export default function LoginScreen() {
           {/* ヘッダー */}
           <View style={styles.header}>
             <Image
-              source={require('../../../assets/images/hontalk-logo.png')}
+              source={require('../../../assets/images/hontalk-mark.png')}
               style={styles.logoImage}
-              resizeMode="contain"
+              resizeMode="cover"
               accessibilityLabel="HonTalk ロゴ"
             />
             <Text style={styles.title}>HonTalk</Text>
@@ -104,9 +104,8 @@ export default function LoginScreen() {
               icon="mail-outline"
               placeholder="example@email.com"
               keyboardType="default"
-              inputMode="text"
-              autoComplete={Platform.OS === 'android' ? 'email' : 'off'}
-              textContentType="none"
+              autoComplete="username"
+              textContentType="emailAddress"
               returnKeyType="next"
             />
 
@@ -118,9 +117,9 @@ export default function LoginScreen() {
               placeholder="8文字以上"
               isPassword
               keyboardType="default"
-              inputMode="text"
-              autoComplete={Platform.OS === 'android' ? 'current-password' : 'off'}
-              textContentType="none"
+              autoComplete="current-password"
+              textContentType="password"
+              passwordRules="minlength: 8;"
               returnKeyType="done"
             />
 
@@ -193,6 +192,8 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     marginBottom: spacing.lg,
+    borderRadius: 18,
+    overflow: 'hidden',
     shadowColor: colors.primary[500],
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,

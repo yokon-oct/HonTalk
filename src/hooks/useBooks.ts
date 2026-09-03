@@ -15,12 +15,12 @@ export const bookKeys = {
 };
 
 /**
- * Google Books APIで書籍を検索する
+ * タイトル・著者・ISBN で書籍を検索する
  */
 export function useSearchBooks(query: string, startIndex = 0, enabled = true) {
   return useQuery({
     queryKey: bookKeys.search(query, startIndex),
-    queryFn: () => bookService.searchGoogleBooks(query, { startIndex }),
+    queryFn: () => bookService.searchBooks(query, { startIndex }),
     enabled: enabled && query.trim().length > 0,
   });
 }
@@ -51,6 +51,25 @@ export function useBookPageData(id: string) {
 
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       const isUuid = uuidRegex.test(id);
+
+      if (id.startsWith('rakuten:')) {
+        const isbn = id.slice('rakuten:'.length);
+        const existing = await bookService.getBookByIsbn(isbn);
+        if (existing) {
+          if (currentUserId) {
+            readingRecord = await bookService.getReadingRecord(currentUserId, existing.id);
+          }
+          return {
+            book: bookService.dbBookToGoogleBookItem(existing),
+            readingRecord,
+            dbBookId: existing.id,
+          };
+        }
+
+        const fetched = await bookService.searchBookByIsbn(isbn);
+        if (!fetched) throw new Error('書籍が見つかりません');
+        return { book: fetched, readingRecord: null, dbBookId: null };
+      }
 
       if (isUuid) {
         const dbBook = await bookService.getBookById(id);

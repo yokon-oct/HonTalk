@@ -3,7 +3,7 @@ import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { colors } from '@/theme/colors';
 import { Ionicons } from '@expo/vector-icons';
-import { useBookPageData, useUpsertReadingRecord } from '@/hooks/useBooks';
+import { useBookPageData, useUpsertReadingRecord, useDeleteReadingRecord } from '@/hooks/useBooks';
 import { useShelvesForBook, useShelves } from '@/hooks/useShelves';
 import { BookCover } from '@/components/book/BookCover';
 import { useReviewsByBook } from '@/hooks/useReviews';
@@ -22,6 +22,7 @@ export default function BookDetailsScreen() {
 
   // 読書ステータスを取得・更新するためのフック
   const { mutateAsync: upsertRecord, isPending: isUpdatingStatus } = useUpsertReadingRecord();
+  const { mutateAsync: deleteRecord, isPending: isDeleting } = useDeleteReadingRecord();
 
   // レビュー一覧を取得するためのフック
   const { data: reviews, isLoading: reviewsLoading } = useReviewsByBook(id || '');
@@ -68,6 +69,24 @@ export default function BookDetailsScreen() {
     }
   };
 
+  const handleRemoveFromShelf = () => {
+    if (!dbBookId) return;
+    Alert.alert('本棚から削除', `「${volumeInfo.title}」を本棚から削除しますか？`, [
+      { text: 'キャンセル', style: 'cancel' },
+      {
+        text: '削除',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteRecord({ bookId: dbBookId });
+          } catch (error: any) {
+            Alert.alert('エラー', '削除に失敗しました: ' + error.message);
+          }
+        },
+      },
+    ]);
+  };
+
   const handleWriteReview = () => {
     router.push({
       pathname: '/review/create',
@@ -102,25 +121,35 @@ export default function BookDetailsScreen() {
           <TouchableOpacity 
             style={[styles.statusButton, currentStatus === 'want_to_read' && styles.activeStatus]}
             onPress={() => handleStatusChange('want_to_read')}
-            disabled={isUpdatingStatus}
+            disabled={isUpdatingStatus || isDeleting}
           >
             <Text style={[styles.statusButtonText, currentStatus === 'want_to_read' && styles.activeStatusText]}>読みたい</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.statusButton, currentStatus === 'reading' && styles.activeStatus]}
             onPress={() => handleStatusChange('reading')}
-            disabled={isUpdatingStatus}
+            disabled={isUpdatingStatus || isDeleting}
           >
             <Text style={[styles.statusButtonText, currentStatus === 'reading' && styles.activeStatusText]}>読書中</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.statusButton, currentStatus === 'finished' && styles.activeStatus]}
             onPress={() => handleStatusChange('finished')}
-            disabled={isUpdatingStatus}
+            disabled={isUpdatingStatus || isDeleting}
           >
             <Text style={[styles.statusButtonText, currentStatus === 'finished' && styles.activeStatusText]}>読了</Text>
           </TouchableOpacity>
         </View>
+        {currentStatus && (
+          <TouchableOpacity
+            style={styles.removeFromShelfButton}
+            onPress={handleRemoveFromShelf}
+            disabled={isDeleting}
+          >
+            <Ionicons name="trash-outline" size={16} color={colors.error} />
+            <Text style={styles.removeFromShelfText}>本棚から削除</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* カスタム本棚への追加 */}
@@ -277,6 +306,18 @@ const styles = StyleSheet.create({
   },
   activeStatusText: {
     color: colors.primary[600],
+  },
+  removeFromShelfButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+  },
+  removeFromShelfText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.error,
   },
   customShelfSection: {
     gap: 12,

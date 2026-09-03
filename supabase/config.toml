@@ -356,6 +356,9 @@ verify_jwt = true
 [functions.search-book-by-isbn]
 verify_jwt = true
 
+[functions.search-books]
+verify_jwt = true
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

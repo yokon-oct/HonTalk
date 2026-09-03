@@ -10,10 +10,12 @@ import {
   useWindowDimensions,
   NativeSyntheticEvent,
   NativeScrollEvent,
+  Alert,
 } from 'react-native';
 import { useRouter, useNavigation } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '@/theme/colors';
-import { useReadingRecords } from '@/hooks/useBooks';
+import { useReadingRecords, useDeleteReadingRecord } from '@/hooks/useBooks';
 import { useShelves } from '@/hooks/useShelves';
 import { useAuthStore } from '@/stores/authStore';
 import { CustomShelfBooksPanel } from '@/components/shelf/CustomShelfBooksPanel';
@@ -44,6 +46,8 @@ export default function ShelfTabScreen() {
 
   const { data: records, isLoading, isError, refetch } = useReadingRecords(user?.id ?? '');
   const { data: customShelves } = useShelves();
+  const { mutate: deleteRecord } = useDeleteReadingRecord();
+  const [isEditing, setIsEditing] = useState(false);
 
   const filteredRecords =
     records?.filter((r) => filter === 'all' || r.status === filter) ?? [];
@@ -72,6 +76,31 @@ export default function ShelfTabScreen() {
     });
   }, [currentPage, pages, navigation]);
 
+  useEffect(() => {
+    if ((records?.length ?? 0) === 0 && isEditing) {
+      setIsEditing(false);
+    }
+  }, [records?.length, isEditing]);
+
+  const handleDeleteBook = useCallback((bookId: string, title: string) => {
+    Alert.alert('本棚から削除', `「${title}」を本棚から削除しますか？`, [
+      { text: 'キャンセル', style: 'cancel' },
+      {
+        text: '削除',
+        style: 'destructive',
+        onPress: () =>
+          deleteRecord(
+            { bookId },
+            {
+              onError: (error) => {
+                Alert.alert('エラー', '削除に失敗しました: ' + error.message);
+              },
+            },
+          ),
+      },
+    ]);
+  }, [deleteRecord]);
+
   const handlePageChange = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
       const nextPage = Math.round(event.nativeEvent.contentOffset.x / pageWidth);
@@ -91,37 +120,64 @@ export default function ShelfTabScreen() {
       refreshing={false}
       onRefresh={refetch}
       ListHeaderComponent={
-        <View style={styles.filterContainer}>
-          {FILTERS.map(({ label, value }) => {
-            const isActive = filter === value;
-            return (
-              <TouchableOpacity
-                key={value}
-                style={[styles.filterButton, isActive && styles.filterButtonActive]}
-                onPress={() => setFilter(value)}
-              >
-                <Text style={[styles.filterText, isActive && styles.filterTextActive]}>
-                  {label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
+        <View style={styles.filterRow}>
+          <View style={styles.filterContainer}>
+            {FILTERS.map(({ label, value }) => {
+              const isActive = filter === value;
+              return (
+                <TouchableOpacity
+                  key={value}
+                  style={[styles.filterButton, isActive && styles.filterButtonActive]}
+                  onPress={() => setFilter(value)}
+                >
+                  <Text style={[styles.filterText, isActive && styles.filterTextActive]}>
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          {(records?.length ?? 0) > 0 && (
+            <TouchableOpacity
+              onPress={() => setIsEditing((prev) => !prev)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={[styles.editButtonText, isEditing && styles.editButtonTextActive]}>
+                {isEditing ? '完了' : '編集'}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       }
       renderItem={({ item }) => (
         <TouchableOpacity
           style={styles.bookItem}
-          onPress={() => router.push(`/book/${item.book_id}`)}
+          onPress={() => {
+            if (isEditing) {
+              handleDeleteBook(item.book_id, item.book.title);
+              return;
+            }
+            router.push(`/book/${item.book_id}`);
+          }}
+          onLongPress={() => handleDeleteBook(item.book_id, item.book.title)}
+          delayLongPress={400}
           activeOpacity={0.8}
         >
-          <Image
-            source={{
-              uri:
-                item.book.cover_image_url ||
-                'https://via.placeholder.com/150x200.png?text=No+Cover',
-            }}
-            style={styles.bookCover}
-          />
+          <View style={styles.bookCoverWrap}>
+            <Image
+              source={{
+                uri:
+                  item.book.cover_image_url ||
+                  'https://via.placeholder.com/150x200.png?text=No+Cover',
+              }}
+              style={styles.bookCover}
+            />
+            {isEditing && (
+              <View style={styles.deleteBadge}>
+                <Ionicons name="remove-circle" size={22} color="#EF4444" />
+              </View>
+            )}
+          </View>
           <Text style={styles.bookTitle} numberOfLines={2}>
             {item.book.title}
           </Text>
@@ -149,7 +205,7 @@ export default function ShelfTabScreen() {
       {item.type === 'main' ? (
         renderMainShelf()
       ) : (
-        <CustomShelfBooksPanel shelfId={item.id} shelfName={item.name} />
+        <CustomShelfBooksPanel shelfId={item.id} shelfName={item.name} editable />
       )}
     </View>
   );
@@ -239,10 +295,26 @@ const styles = StyleSheet.create({
     color: colors.neutral[700],
     fontWeight: 'bold',
   },
-  filterContainer: {
+  filterRow: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingBottom: 12,
     gap: 8,
+  },
+  filterContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  editButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary[600],
+  },
+  editButtonTextActive: {
+    color: colors.primary[500],
   },
   filterButton: {
     paddingHorizontal: 12,
@@ -278,12 +350,22 @@ const styles = StyleSheet.create({
     width: '30%',
     alignItems: 'center',
   },
+  bookCoverWrap: {
+    width: '100%',
+    marginBottom: 8,
+  },
   bookCover: {
     width: '100%',
     aspectRatio: 0.7,
     borderRadius: 8,
     backgroundColor: colors.neutral[200],
-    marginBottom: 8,
+  },
+  deleteBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: colors.neutral[0],
+    borderRadius: 11,
   },
   bookTitle: {
     fontSize: 12,

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -32,6 +32,7 @@ export default function CustomShelfScreen() {
   const { mutate: removeBook } = useRemoveBookFromShelf();
 
   const [renameModalVisible, setRenameModalVisible] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   const handleRename = async (name: string) => {
     if (!id) return;
@@ -62,7 +63,19 @@ export default function CustomShelfScreen() {
     if (!id) return;
     Alert.alert('本棚から削除', `「${title}」をこの本棚から削除しますか？`, [
       { text: 'キャンセル', style: 'cancel' },
-      { text: '削除', style: 'destructive', onPress: () => removeBook({ shelfId: id, bookId }) },
+      {
+        text: '削除',
+        style: 'destructive',
+        onPress: () =>
+          removeBook(
+            { shelfId: id, bookId },
+            {
+              onError: (error) => {
+                Alert.alert('エラー', '削除に失敗しました: ' + error.message);
+              },
+            },
+          ),
+      },
     ]);
   };
 
@@ -75,6 +88,13 @@ export default function CustomShelfScreen() {
   };
 
   const isLoading = shelfLoading || booksLoading;
+  const canEdit = (books?.length ?? 0) > 0;
+
+  useEffect(() => {
+    if (!canEdit && isEditing) {
+      setIsEditing(false);
+    }
+  }, [canEdit, isEditing]);
 
   return (
     <View style={styles.container}>
@@ -84,9 +104,21 @@ export default function CustomShelfScreen() {
           headerShown: true,
           headerBackTitle: '戻る',
           headerRight: () => (
-            <TouchableOpacity onPress={handleMenu} style={styles.headerMenuButton}>
-              <Ionicons name="ellipsis-horizontal" size={22} color={colors.neutral[700]} />
-            </TouchableOpacity>
+            <View style={styles.headerRight}>
+              {canEdit && (
+                <TouchableOpacity
+                  onPress={() => setIsEditing((prev) => !prev)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={[styles.editButtonText, isEditing && styles.editButtonTextActive]}>
+                    {isEditing ? '完了' : '編集'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity onPress={handleMenu} style={styles.headerMenuButton}>
+                <Ionicons name="ellipsis-horizontal" size={22} color={colors.neutral[700]} />
+              </TouchableOpacity>
+            </View>
           ),
         }}
       />
@@ -112,16 +144,30 @@ export default function CustomShelfScreen() {
           renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.bookItem}
-              onPress={() => router.push(`/book/${item.book_id}`)}
+              onPress={() => {
+                if (isEditing) {
+                  handleRemoveBook(item.book_id, item.book.title);
+                  return;
+                }
+                router.push(`/book/${item.book_id}`);
+              }}
               onLongPress={() => handleRemoveBook(item.book_id, item.book.title)}
+              delayLongPress={400}
               activeOpacity={0.8}
             >
-              <Image
-                source={{
-                  uri: item.book.cover_image_url || 'https://via.placeholder.com/150x200.png?text=No+Cover',
-                }}
-                style={styles.bookCover}
-              />
+              <View style={styles.bookCoverWrap}>
+                <Image
+                  source={{
+                    uri: item.book.cover_image_url || 'https://via.placeholder.com/150x200.png?text=No+Cover',
+                  }}
+                  style={styles.bookCover}
+                />
+                {isEditing && (
+                  <View style={styles.deleteBadge}>
+                    <Ionicons name="remove-circle" size={22} color="#EF4444" />
+                  </View>
+                )}
+              </View>
               <Text style={styles.bookTitle} numberOfLines={2}>
                 {item.book.title}
               </Text>
@@ -156,9 +202,22 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.neutral[50],
   },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   headerMenuButton: {
     padding: 4,
     marginRight: 4,
+  },
+  editButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.primary[600],
+  },
+  editButtonTextActive: {
+    color: colors.primary[500],
   },
   centerContainer: {
     flex: 1,
@@ -194,12 +253,22 @@ const styles = StyleSheet.create({
     width: '30%',
     alignItems: 'center',
   },
+  bookCoverWrap: {
+    width: '100%',
+    marginBottom: 8,
+  },
   bookCover: {
     width: '100%',
     aspectRatio: 0.7,
     borderRadius: 8,
     backgroundColor: colors.neutral[200],
-    marginBottom: 8,
+  },
+  deleteBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: colors.neutral[0],
+    borderRadius: 11,
   },
   bookTitle: {
     fontSize: 12,

@@ -19,13 +19,13 @@ OUT_PATH = os.path.join(BASE_DIR, "assets", "images", "notification-icon.png")
 
 SOURCE_SIZE = 1024
 OUTPUT_SIZE = 96
-BG_THRESHOLD = 225  # #FAF8F5 付近の背景を除去
 
 
 def is_background(r: int, g: int, b: int, a: int) -> bool:
     if a < 16:
         return True
-    return r >= BG_THRESHOLD and g >= BG_THRESHOLD - 3 and b >= BG_THRESHOLD - 8
+    # テラコッタ / 旧オレンジ背景。白いロゴ本体は残す。
+    return r > 180 and 50 < g < 170 and b < 100
 
 
 def make_notification_icon(src: Image.Image, source_size: int, output_size: int) -> Image.Image:

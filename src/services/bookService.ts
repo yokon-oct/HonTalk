@@ -1,7 +1,7 @@
 /**
  * 書籍サービス
  *
- * - Google Books API による書籍検索
+ * - Google Books / 楽天ブックス / 登録済み書籍の横断検索
  * - Supabase books テーブルの CRUD
  * - reading_records の管理
  */
@@ -9,6 +9,17 @@
 import { supabase } from './supabase';
 import type { Database } from '@/types/database.types';
 import { htmlToPlainText } from '@/utils/htmlToPlainText';
+import {
+  buildGoogleBooksQuery,
+  extractIsbnFromItem,
+  extractIsbnFromQuery,
+  isValidIsbn,
+  mergeAndRankSearchResults,
+  normalizeIsbn,
+  normalizeSearchQuery,
+} from '@/utils/bookSearch';
+
+export { isValidIsbn, normalizeIsbn };
 
 type BookRow = Database['public']['Tables']['books']['Row'];
 type BookInsert = Database['public']['Tables']['books']['Insert'];
@@ -27,16 +38,6 @@ export class GoogleBooksRateLimitError extends Error {
     super('Google Books API の利用上限に達しました');
     this.name = 'GoogleBooksRateLimitError';
   }
-}
-
-/** バーコードスキャン値から ISBN を正規化する */
-export function normalizeIsbn(raw: string): string {
-  return raw.replace(/[^0-9Xx]/g, '').toUpperCase();
-}
-
-/** ISBN-10 / ISBN-13 形式かどうか */
-export function isValidIsbn(isbn: string): boolean {
-  return /^\d{10}$/.test(isbn) || /^\d{13}$/.test(isbn);
 }
 
 /** Google Books API のレスポンス型 */
@@ -78,8 +79,8 @@ export async function searchGoogleBooks(
   const {
     startIndex = 0,
     maxResults = 20,
-    langRestrict = 'ja',
-    allowDummyOnRateLimit = true,
+    langRestrict = '',
+    allowDummyOnRateLimit = false,
   } = options;
 
   if (!query.trim()) {
@@ -91,6 +92,7 @@ export async function searchGoogleBooks(
     startIndex: String(startIndex),
     maxResults: String(maxResults),
     printType: 'books',
+    orderBy: 'relevance',
   });
 
   if (langRestrict) {
@@ -155,6 +157,145 @@ export async function searchGoogleBooks(
   };
 }
 
+async function searchGoogleBooksWithFallback(
+  normalizedQuery: string,
+  options: { startIndex?: number; maxResults?: number } = {},
+): Promise<{ items: GoogleBookItem[]; totalItems: number }> {
+  const fieldedQuery = buildGoogleBooksQuery(normalizedQuery);
+  const fielded = await searchGoogleBooks(fieldedQuery, {
+    ...options,
+    langRestrict: '',
+    allowDummyOnRateLimit: false,
+  });
+
+  if (fielded.items.length > 0 || fieldedQuery === normalizedQuery) {
+    return fielded;
+  }
+
+  return searchGoogleBooks(normalizedQuery, {
+    ...options,
+    langRestrict: '',
+    allowDummyOnRateLimit: false,
+  });
+}
+
+function escapeIlikePattern(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
+}
+
+/**
+ * アプリ内に登録済みの書籍をタイトル・著者で検索する
+ */
+export async function searchLocalBooks(query: string, limit = 10): Promise<GoogleBookItem[]> {
+  const pattern = `%${escapeIlikePattern(query)}%`;
+
+  const [byTitle, byAuthor] = await Promise.all([
+    supabase.from('books').select('*').ilike('title', pattern).limit(limit),
+    supabase.from('books').select('*').ilike('author', pattern).limit(limit),
+  ]);
+
+  if (byTitle.error) {
+    console.warn('Local title search failed:', byTitle.error.message);
+  }
+  if (byAuthor.error) {
+    console.warn('Local author search failed:', byAuthor.error.message);
+  }
+
+  const seen = new Set<string>();
+  const books: BookRow[] = [];
+  for (const row of [...(byTitle.data ?? []), ...(byAuthor.data ?? [])]) {
+    if (seen.has(row.id)) continue;
+    seen.add(row.id);
+    books.push(row);
+  }
+
+  return books.map(dbBookToGoogleBookItem);
+}
+
+/**
+ * 楽天ブックス API でキーワード検索する（Edge Function 経由）
+ */
+async function searchRakutenBooksByQuery(query: string): Promise<GoogleBookItem[]> {
+  try {
+    const { data, error } = await supabase.functions.invoke('search-books', {
+      body: { query },
+    });
+
+    if (error) {
+      console.warn('Rakuten keyword search error:', error.message);
+      return [];
+    }
+
+    if (data?.error) {
+      console.warn('Rakuten keyword search failed:', data.error, data.message ?? '');
+      return [];
+    }
+
+    return Array.isArray(data?.items) ? (data.items as GoogleBookItem[]) : [];
+  } catch (error) {
+    console.warn('Rakuten keyword search failed:', error);
+    return [];
+  }
+}
+
+/**
+ * タイトル・著者・ISBN で書籍を検索する。
+ * Google Books・楽天ブックス・登録済み書籍を並列に引き、関連度順にマージする。
+ */
+export async function searchBooks(
+  query: string,
+  options: { startIndex?: number; maxResults?: number } = {},
+): Promise<{ items: GoogleBookItem[]; totalItems: number }> {
+  const normalizedQuery = normalizeSearchQuery(query);
+  if (!normalizedQuery) {
+    return { items: [], totalItems: 0 };
+  }
+
+  const isbn = extractIsbnFromQuery(normalizedQuery);
+  if (isbn) {
+    const book = await searchBookByIsbn(isbn);
+    return { items: book ? [book] : [], totalItems: book ? 1 : 0 };
+  }
+
+  const maxResults = options.maxResults ?? 20;
+
+  const [googleResult, rakutenResult, localResult] = await Promise.allSettled([
+    searchGoogleBooksWithFallback(normalizedQuery, {
+      startIndex: options.startIndex,
+      maxResults,
+    }),
+    searchRakutenBooksByQuery(normalizedQuery),
+    searchLocalBooks(normalizedQuery),
+  ]);
+
+  const googleItems =
+    googleResult.status === 'fulfilled' ? googleResult.value.items : [];
+  const rakutenItems = rakutenResult.status === 'fulfilled' ? rakutenResult.value : [];
+  const localItems = localResult.status === 'fulfilled' ? localResult.value : [];
+
+  if (googleResult.status === 'rejected' && googleResult.reason instanceof GoogleBooksRateLimitError) {
+    if (rakutenItems.length === 0 && localItems.length === 0) {
+      throw googleResult.reason;
+    }
+  } else if (
+    googleResult.status === 'rejected' &&
+    rakutenItems.length === 0 &&
+    localItems.length === 0
+  ) {
+    throw googleResult.reason;
+  }
+
+  const items = mergeAndRankSearchResults(normalizedQuery, [
+    localItems,
+    rakutenItems,
+    googleItems,
+  ]).slice(0, 40);
+  return {
+    items,
+    totalItems: items.length,
+  };
+}
+
 /**
  * 楽天ブックス API で ISBN 検索する（Edge Function 経由）
  */
@@ -192,9 +333,9 @@ async function searchRakutenBookByIsbn(isbn: string): Promise<GoogleBookItem | n
   }
 }
 
-function dbBookToGoogleBookItem(book: BookRow): GoogleBookItem {
+export function dbBookToGoogleBookItem(book: BookRow): GoogleBookItem {
   return {
-    id: book.google_books_id ?? book.rakuten_books_id ?? book.id,
+    id: book.google_books_id ?? book.id,
     volumeInfo: {
       title: book.title,
       authors: [book.author],
@@ -295,15 +436,7 @@ export async function getGoogleBookById(id: string): Promise<GoogleBookItem> {
  * Google Books の書籍データから ISBN を抽出する
  */
 function extractIsbn(item: GoogleBookItem): string | null {
-  const identifiers = item.volumeInfo.industryIdentifiers;
-  if (!identifiers) return null;
-
-  // ISBN_13 を優先
-  const isbn13 = identifiers.find((id) => id.type === 'ISBN_13');
-  if (isbn13) return isbn13.identifier;
-
-  const isbn10 = identifiers.find((id) => id.type === 'ISBN_10');
-  return isbn10?.identifier ?? null;
+  return extractIsbnFromItem(item);
 }
 
 function normalizePublishedDate(value?: string | null): string | null {
