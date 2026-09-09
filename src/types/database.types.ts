@@ -612,6 +612,10 @@ export interface Database {
           score: number;
         }[];
       };
+      delete_own_account: {
+        Args: Record<string, never>;
+        Returns: undefined;
+      };
       get_user_ranking: {
         Args: {
           p_period?: string;

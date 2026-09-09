@@ -259,7 +259,7 @@ export function useAuth() {
 
   /**
    * アカウント削除
-   * profiles テーブルから削除 → CASCADE で関連データも全削除 → サインアウト
+   * delete_own_account RPC で auth.users を削除し、関連データを CASCADE 削除する
    */
   const deleteAccount = useCallback(async () => {
     try {
@@ -267,19 +267,17 @@ export function useAuth() {
       const currentUser = useAuthStore.getState().user;
       if (!currentUser) throw new Error('ユーザーが認証されていません');
 
-      // profiles を削除（ON DELETE CASCADE で reading_records, reviews 等も連鎖削除）
-      const { error } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', currentUser.id);
-
+      const { error } = await supabase.rpc('delete_own_account');
       if (error) throw error;
 
-      // profiles のCASCADE削除でpush_tokensも削除されるため、ローカルの参照のみクリアする
       setCurrentPushToken(null);
 
-      // 認証セッションも削除
-      await supabase.auth.signOut();
+      // サーバー側でユーザーは削除済み。ローカルセッションだけ消す
+      try {
+        await supabase.auth.signOut({ scope: 'local' });
+      } catch {
+        // セッション無効化済みでもローカル状態は必ずリセットする
+      }
       reset();
       queryClient.clear();
 

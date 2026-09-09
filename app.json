@@ -27,8 +27,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.CAMERA"
       ]
     },
     "web": {
@@ -41,7 +40,8 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "本のバーコードをスキャンするためにカメラを使用します。"
+          "cameraPermission": "本のバーコードをスキャンするためにカメラを使用します。",
+          "recordAudioAndroid": false
         }
       ],
       [

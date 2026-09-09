@@ -45,7 +45,7 @@ function MenuRow({ item }: { item: MenuItem }) {
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { signOut, deleteAccount } = useAuth();
+  const { signOut, deleteAccount, isLoading } = useAuth();
   const profile = useAuthStore((s) => s.profile);
   const user = useAuthStore((s) => s.user);
 
@@ -64,6 +64,7 @@ export default function SettingsScreen() {
   };
 
   const handleDeleteAccount = () => {
+    if (isLoading) return;
     Alert.alert(
       'アカウントを削除',
       '本当にアカウントを削除しますか？\nすべてのデータが完全に削除され、元に戻すことはできません。',
