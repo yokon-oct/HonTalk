@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, Alert, Linking } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,13 +17,22 @@ export default function ScannerScreen() {
   }
 
   if (!permission.granted) {
+    const canRequest = permission.canAskAgain;
+
     return (
       <View style={styles.centerContainer}>
         <Stack.Screen options={{ title: 'バーコードスキャン', headerBackTitle: '戻る' }} />
         <Ionicons name="camera-outline" size={64} color={colors.neutral[300]} />
-        <Text style={styles.permissionText}>カメラへのアクセスを許可してください</Text>
-        <TouchableOpacity style={styles.button} onPress={requestPermission}>
-          <Text style={styles.buttonText}>許可する</Text>
+        <Text style={styles.permissionText}>
+          {canRequest
+            ? '本のバーコードをスキャンするには、カメラが必要です。'
+            : 'カメラへのアクセスがオフになっています。バーコードをスキャンするには、設定アプリでカメラをオンにしてください。'}
+        </Text>
+        <TouchableOpacity
+          style={styles.button}
+          onPress={canRequest ? requestPermission : () => Linking.openSettings()}
+        >
+          <Text style={styles.buttonText}>{canRequest ? '続ける' : '設定を開く'}</Text>
         </TouchableOpacity>
       </View>
     );
