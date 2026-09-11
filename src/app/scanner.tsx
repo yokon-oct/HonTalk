@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, Alert, Linking } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Stack, useRouter } from 'expo-router';
@@ -12,27 +12,34 @@ export default function ScannerScreen() {
   const [isSearching, setIsSearching] = useState(false);
   const router = useRouter();
 
-  if (!permission) {
-    return <View style={styles.container} />;
+  // Guideline 5.1.1: システムダイアログの前にカスタム案内や「許可する」ボタンを出さない
+  useEffect(() => {
+    if (permission?.status === 'undetermined') {
+      void requestPermission();
+    }
+  }, [permission, requestPermission]);
+
+  if (!permission || permission.status === 'undetermined') {
+    return (
+      <View style={styles.container}>
+        <Stack.Screen options={{ title: 'バーコードスキャン', headerBackTitle: '戻る' }} />
+      </View>
+    );
   }
 
   if (!permission.granted) {
-    const canRequest = permission.canAskAgain;
-
     return (
       <View style={styles.centerContainer}>
         <Stack.Screen options={{ title: 'バーコードスキャン', headerBackTitle: '戻る' }} />
         <Ionicons name="camera-outline" size={64} color={colors.neutral[300]} />
         <Text style={styles.permissionText}>
-          {canRequest
-            ? '本のバーコードをスキャンするには、カメラが必要です。'
-            : 'カメラへのアクセスがオフになっています。バーコードをスキャンするには、設定アプリでカメラをオンにしてください。'}
+          カメラへのアクセスがオフになっています。バーコードをスキャンするには、設定アプリでカメラをオンにしてください。
         </Text>
         <TouchableOpacity
           style={styles.button}
-          onPress={canRequest ? requestPermission : () => Linking.openSettings()}
+          onPress={() => Linking.openSettings()}
         >
-          <Text style={styles.buttonText}>{canRequest ? '続ける' : '設定を開く'}</Text>
+          <Text style={styles.buttonText}>設定を開く</Text>
         </TouchableOpacity>
       </View>
     );
