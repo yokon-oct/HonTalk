@@ -3,20 +3,112 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>HonTalk — 法的情報</title>
+    <title>HonTalk（本トーク）— 読書記録と本好きSNS</title>
+    <meta
+      name="description"
+      content="HonTalk（本トーク）は、読んだ本の記録、レビュー、本棚、本好きとのつながりをひとつにまとめた無料アプリです。iPhone / iPad の App Store からダウンロードできます。"
+    />
+    <link rel="canonical" href="https://yokon-oct.github.io/HonTalk/" />
+    <link rel="icon" href="app-icon.png" />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="ja_JP" />
+    <meta property="og:title" content="HonTalk（本トーク）— 読書記録と本好きSNS" />
+    <meta
+      property="og:description"
+      content="読んだ本の記録、レビュー、本棚、本好きとのつながり。無料の読書アプリです。"
+    />
+    <meta property="og:url" content="https://yokon-oct.github.io/HonTalk/" />
+    <meta property="og:image" content="https://yokon-oct.github.io/HonTalk/app-icon.png" />
+    <meta name="twitter:card" content="summary" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="styles.css" />
   </head>
-  <body>
-    <header>
+  <body class="landing">
+    <header class="site-header">
       <a href="index.html">HonTalk</a>
+      <nav>
+        <a href="#features">できること</a>
+        <a href="support.html">サポート</a>
+      </nav>
     </header>
+
     <main>
-      <h1>HonTalk（本トーク）</h1>
-      <p class="updated">SNS機能付き読書記録アプリ</p>
-      <p>
-        HonTalk は、読書記録の管理とレビュー共有を通じて、本好き同士がつながれるモバイルアプリです。
-        本ページでは、App Store 公開に必要な法的情報へのリンクを掲載しています。
-      </p>
+      <section class="hero">
+        <img class="hero-icon" src="app-icon.png" alt="HonTalk のアイコン" width="96" height="96" />
+        <h1>HonTalk<span class="hero-kana">本トーク</span></h1>
+        <p class="hero-lead">
+          読んだ本を記録して、感想を残して、本好きとつながる。
+          読書記録とSNSを、ひとつのアプリにまとめました。
+        </p>
+        <a
+          class="cta"
+          href="https://apps.apple.com/jp/app/hontalk/id6799786742"
+          rel="noopener"
+        >App Store で見る</a>
+        <p class="cta-note">無料　／　iPhone・iPad　／　日本語</p>
+      </section>
+
+      <section id="features">
+        <h2>できること</h2>
+        <div class="features">
+          <article class="feature">
+            <h3>読書記録</h3>
+            <p>読みたい / 読書中 / 読了で管理できます。星5段階の評価とレビューも残せます。</p>
+          </article>
+          <article class="feature">
+            <h3>本棚と統計</h3>
+            <p>カスタム本棚をつくり、月ごとの冊数やジャンルの傾向を振り返られます。</p>
+          </article>
+          <article class="feature">
+            <h3>本好きとつながる</h3>
+            <p>フォロー、タイムライン、いいね、コメントで、同じ本を読んだ人と話せます。</p>
+          </article>
+          <article class="feature">
+            <h3>探す・登録する</h3>
+            <p>タイトル検索のほか、ISBNバーコードをスキャンして本を登録できます。</p>
+          </article>
+          <article class="feature">
+            <h3>ランキング</h3>
+            <p>人気の本や話題のレビューを見て、次に読む一冊を見つけられます。</p>
+          </article>
+          <article class="feature">
+            <h3>安心して使う</h3>
+            <p>通報、ブロック、ミュート、ネタバレ防止に対応しています。</p>
+          </article>
+        </div>
+      </section>
+
+      <section>
+        <h2>はじめ方</h2>
+        <ol class="steps">
+          <li>
+            <strong>App Store から入れる</strong>
+            <span>iPhone または iPad に無料でインストールできます。</span>
+          </li>
+          <li>
+            <strong>アカウントをつくる</strong>
+            <span>メール、Apple、Google のいずれかで登録できます。</span>
+          </li>
+          <li>
+            <strong>本を1冊登録する</strong>
+            <span>読んだ本や、これから読みたい本を追加してみてください。</span>
+          </li>
+        </ol>
+      </section>
+
+      <section class="bottom-cta">
+        <p>いま App Store で公開中です。</p>
+        <a
+          class="cta"
+          href="https://apps.apple.com/jp/app/hontalk/id6799786742"
+          rel="noopener"
+        >App Store で見る</a>
+      </section>
 
       <div class="card-grid">
         <a class="card" href="terms-of-service.html">
@@ -33,6 +125,7 @@
         </a>
       </div>
     </main>
+
     <footer>
       <nav>
         <a href="terms-of-service.html">利用規約</a>
