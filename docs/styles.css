@@ -72,6 +72,7 @@ header a {
   height: 96px;
   margin: 0 auto 20px;
   border-radius: 22px;
+  background: var(--surface);
   box-shadow: 0 8px 24px rgba(26, 24, 21, 0.12);
 }
 
